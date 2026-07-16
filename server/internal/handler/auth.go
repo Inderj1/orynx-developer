@@ -120,8 +120,18 @@ func generateCode() (string, error) {
 	return fmt.Sprintf("%06d", n), nil
 }
 
+// devModeEnabled reports whether dev-only auth shortcuts are explicitly opted
+// in via MULTICA_DEV_MODE. The dev verification code was previously fail-open
+// on any non-production APP_ENV, so a misconfigured "staging"/unset deploy
+// silently accepted a static login code for any email. We now require an
+// explicit opt-in on top of non-production.
+func devModeEnabled() bool {
+	v := strings.TrimSpace(os.Getenv("MULTICA_DEV_MODE"))
+	return v == "1" || strings.EqualFold(v, "true")
+}
+
 func isDevVerificationCode(code string) bool {
-	if isProductionEnv() {
+	if isProductionEnv() || !devModeEnabled() {
 		return false
 	}
 
@@ -130,7 +140,13 @@ func isDevVerificationCode(code string) bool {
 		return false
 	}
 
-	return subtle.ConstantTimeCompare([]byte(code), []byte(devCode)) == 1
+	if subtle.ConstantTimeCompare([]byte(code), []byte(devCode)) == 1 {
+		// Loud on every acceptance: this is a security-sensitive bypass and
+		// must be impossible to leave on by accident without a trail.
+		slog.Warn("DEV verification code accepted — MULTICA_DEV_MODE is enabled; this MUST NOT run in production")
+		return true
+	}
+	return false
 }
 
 func isProductionEnv() bool {

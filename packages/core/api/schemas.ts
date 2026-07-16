@@ -27,6 +27,7 @@ import type {
   ListLabelsResponse,
   ListWebhookDeliveriesResponse,
   NotificationPreferenceResponse,
+  Issue,
   ResourceLabelsResponse,
   SearchIssuesResponse,
   SearchProjectsResponse,
@@ -461,6 +462,35 @@ export const IssueSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 }).loose();
+
+// Fallback for single-issue reads (getIssue/createIssue/updateIssue) when a
+// response is so malformed it fails even the lenient IssueSchema. Rendering a
+// blank issue beats throwing in the detail view; the schema logger records the
+// drift. Enum fields use their neutral defaults.
+export const EMPTY_ISSUE: Issue = {
+  id: "",
+  workspace_id: "",
+  number: 0,
+  identifier: "",
+  title: "",
+  description: null,
+  status: "backlog",
+  priority: "none",
+  assignee_type: null,
+  assignee_id: null,
+  creator_type: "member",
+  creator_id: "",
+  parent_issue_id: null,
+  project_id: null,
+  position: 0,
+  stage: null,
+  start_date: null,
+  due_date: null,
+  metadata: {},
+  properties: {},
+  created_at: "",
+  updated_at: "",
+};
 
 export const ListIssuesResponseSchema = z.object({
   issues: z.array(IssueSchema).default([]),

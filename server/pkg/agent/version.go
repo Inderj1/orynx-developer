@@ -3,6 +3,7 @@ package agent
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -150,7 +151,15 @@ func CheckMinVersion(agentType, detectedVersion string) error {
 	}
 	detected, err := parseSemver(detectedVersion)
 	if err != nil {
-		return fmt.Errorf("cannot parse detected %s version %q: %w", agentType, detectedVersion, err)
+		// An unparsable version string (an onboarding prompt like "Install
+		// GitHub Copilot CLI?", AV/banner noise, or a `dev` build) must NOT
+		// drop an otherwise-working runtime. Register it as "version unknown"
+		// and gate only when a version actually parses below the minimum —
+		// silently vanishing a usable runtime is worse than running one whose
+		// version we couldn't read. The reason is logged so it can be surfaced.
+		slog.Warn("agent CLI version unparsable; registering as version-unknown instead of dropping",
+			"agent_type", agentType, "detected", detectedVersion)
+		return nil
 	}
 	if detected.lessThan(min) {
 		return fmt.Errorf("%s version %s is below minimum required %s — please upgrade", agentType, detectedVersion, minRaw)

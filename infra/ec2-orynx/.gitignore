@@ -1,0 +1,10 @@
+# Terraform downloaded providers/plugins (large binaries)
+.terraform/
+
+# Terraform state (may contain secrets)
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Private keys / credentials
+*.pem

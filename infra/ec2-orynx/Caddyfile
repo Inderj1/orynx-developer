@@ -1,0 +1,43 @@
+# Orynx self-host reverse proxy — private, single-user, IP-locked box.
+#
+# Security boundary is the EC2 security group (operator /32). Two client classes:
+#   1. Browser page loads  -> silent auto-login (no session cookie => bridge).
+#   2. API / CLI / token clients (the operator's local `multica` CLI, curl, or
+#      local Claude Code) -> proxied straight to the backend, which enforces its
+#      own auth (PAT bearer token or session cookie). This is what lets the Mac
+#      drive the box remotely while the IP-lock stays the outer gate.
+:80 {
+	# Auto-login bridge: mints the operator session, then 302 -> /.
+	handle /__login* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	# API / auth / websocket / uploads always go to the backend. The backend
+	# authenticates each request (bearer PAT from the CLI, or browser cookie),
+	# so these must NOT be caught by the browser auto-login redirect below.
+	@api path /api/* /auth/* /ws /uploads/*
+	handle @api {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# If a stale/invalid session cookie bounced the SPA to its own /login page,
+	# re-run the auto-login bridge (mints a fresh valid session, overwriting the
+	# stale cookie). Without this, an old cookie slips past the @nocookie check
+	# below and the user sees the app's email login.
+	handle /login* {
+		redir * /__login 302
+	}
+
+	# Frontend page loads without a session cookie -> bounce through the bridge.
+	@nocookie {
+		not header_regexp Cookie multica_auth=
+	}
+	handle @nocookie {
+		redir * /__login 302
+	}
+
+	# Authenticated browser: serve the frontend.
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

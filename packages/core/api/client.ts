@@ -192,6 +192,8 @@ import {
   EMPTY_SQUAD_MEMBER_STATUS_LIST,
   EMPTY_TIMELINE_ENTRIES,
   EMPTY_USER,
+  EMPTY_ISSUE,
+  IssueSchema,
   EMPTY_LIST_WEBHOOK_DELIVERIES_RESPONSE,
   EMPTY_WEBHOOK_DELIVERY,
   AppConfigSchema,
@@ -654,13 +656,19 @@ export class ApiClient {
   }
 
   async getIssue(id: string): Promise<Issue> {
-    return this.fetch(`/api/issues/${id}`);
+    const raw = await this.fetch<unknown>(`/api/issues/${id}`);
+    return parseWithFallback(raw, IssueSchema, EMPTY_ISSUE, {
+      endpoint: "GET /api/issues/:id",
+    });
   }
 
   async createIssue(data: CreateIssueRequest): Promise<Issue> {
-    return this.fetch("/api/issues", {
+    const raw = await this.fetch<unknown>("/api/issues", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, IssueSchema, EMPTY_ISSUE, {
+      endpoint: "POST /api/issues",
     });
   }
 
@@ -694,9 +702,12 @@ export class ApiClient {
   }
 
   async updateIssue(id: string, data: UpdateIssueRequest): Promise<Issue> {
-    return this.fetch(`/api/issues/${id}`, {
+    const raw = await this.fetch<unknown>(`/api/issues/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, IssueSchema, EMPTY_ISSUE, {
+      endpoint: "PUT /api/issues/:id",
     });
   }
 
