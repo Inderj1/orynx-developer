@@ -46,17 +46,31 @@ socket to a sandbox re-grants root, so the sandbox must provide containers
 Two layers, landed incrementally behind a config flag (default off) so each PR
 is safe to merge and the cutover is a deliberate, tested switch.
 
-### Layer 1 — identity separation (box + config)
-- Create a dedicated **`orynx-agent`** user: **not** in `sudoers`, **not** in the
-  host `docker` group, its own home. The daemon (or at least the agent child
-  process) runs as this uid.
-- Move operator secrets out of the agent uid's reach: the GitHub credential
-  becomes a **per-run, repo-scoped GitHub App installation token** (punch-list
-  #2) minted by the daemon and injected per run — never the long-lived PAT + SSH
-  key. Claude creds, daemon PAT, DB password held by the daemon uid / a secrets
-  broker, not readable by `orynx-agent`.
+### Layer 1 — identity separation (box, NOT per-agent code)
+
+Correctness note: the daemon runs **non-root** on purpose (`claudeRootSudoPreflight`
+refuses to start as root), and a non-root parent **cannot `setuid`** its children
+to a different user. So the per-agent `SysProcAttr.Credential` drop is a dead end
+here — it would require a root daemon. The right, simpler approach is to run the
+**whole daemon as a dedicated low-priv `orynx-agent` user**; every agent child
+then inherits that unprivileged uid with no drop needed. This is an ops migration
+(systemd `User=orynx-agent`), not an agent-core code change.
+
+- Create **`orynx-agent`**: **not** in `sudoers`, **not** in the host `docker`
+  group, its own home. Flip the systemd unit `User=ubuntu` → `User=orynx-agent`.
+- `orynx-agent` gets its own auth (it can't read `ubuntu`'s): a **Claude login**
+  (interactive, one-time) and a GitHub credential that is a **per-run, repo-scoped
+  GitHub App installation token** (#2) — never the long-lived PAT + SSH key. The
+  daemon PAT is copied into `orynx-agent`'s home (0600). The operator's
+  `~ubuntu/.claude`, `~ubuntu/.ssh`, `~ubuntu/.config/gh`, and the Terraform state
+  stay owned by `ubuntu` and become **unreadable** to the agent uid.
 - Result: even with `bypassPermissions`, the agent has no `sudo`, no host Docker
   socket, and cannot read the operator's GitHub/Claude/PAT/DB material.
+
+Interactive steps the operator must run (cannot be automated): `claude login` as
+`orynx-agent`, and creating the GitHub App (#2). Everything else (user creation,
+home, rootless runtime, unit edit, perms) is scripted and reversible (flip
+`User=` back to `ubuntu` to roll back instantly).
 
 ### Layer 2 — containers without host root (rootless runtime)
 - Give `orynx-agent` a **rootless container runtime** (rootless Podman, or
