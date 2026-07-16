@@ -60,14 +60,14 @@ resource "aws_security_group" "orynx" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [local.my_cidr]
+    cidr_blocks = distinct(concat([local.my_cidr], var.extra_operator_cidrs))
   }
   ingress {
     description = "Web (Caddy reverse proxy to frontend)"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [local.my_cidr]
+    cidr_blocks = distinct(concat([local.my_cidr], var.extra_operator_cidrs))
   }
   egress {
     description = "All outbound (pulls, agent API calls, git)"

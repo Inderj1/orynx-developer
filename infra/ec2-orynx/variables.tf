@@ -15,3 +15,9 @@ variable "disk_gb" {
   type        = number
   default     = 40
 }
+
+variable "extra_operator_cidrs" {
+  description = "Additional operator IPs (besides the auto-detected current IP) allowed on SSH + web. The operator works from two networks; keep both so an ISP IP reassignment on one doesn't lock the box."
+  type        = list(string)
+  default     = ["47.233.56.109/32", "142.136.62.204/32"]
+}
