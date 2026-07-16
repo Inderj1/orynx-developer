@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Inter, Geist_Mono, Source_Serif_4 } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@multica/ui/components/ui/sonner";
 import { cn } from "@multica/ui/lib/utils";
@@ -10,17 +10,18 @@ import { RESOURCES } from "@multica/views/locales";
 import { getRequestLocale } from "@/lib/request-locale";
 import "./globals.css";
 
-// Inter is the Latin UI face. next/font produces a hashed family (`__Inter_xxx`)
-// plus a synthetic size-adjusted fallback face to prevent FOUT layout shift —
-// both are exposed under the `--font-inter` CSS variable.
+// Space Grotesk is the Latin UI face (Agentic Workspace theme). next/font
+// produces a hashed family plus a synthetic size-adjusted fallback face to
+// prevent FOUT layout shift — both exposed under the `--font-inter` CSS
+// variable (name kept stable so ./globals.css need not change).
 //
-// The full `--font-sans` stack (Inter + the per-locale CJK fallback chain) is
-// assembled in static CSS in ./globals.css, not here: it must be overridable per
-// `<html lang>` (Japanese Kanji are Han ideographs and need a Japanese-first CJK
-// stack), and a hashed family name can only be referenced from CSS via a variable.
-// Keeping the CJK chain in CSS also keeps it CSP-safe and in sync with the desktop
-// app, which defines the same chain in apps/desktop/src/renderer/src/globals.css.
-const inter = Inter({
+// The full `--font-sans` stack (the Latin face + the per-locale CJK fallback
+// chain) is assembled in static CSS in ./globals.css, not here: it must be
+// overridable per `<html lang>` (Japanese Kanji are Han ideographs and need a
+// Japanese-first CJK stack), and a hashed family name can only be referenced
+// from CSS via a variable. Keeping the CJK chain in CSS also keeps it CSP-safe
+// and in sync with the desktop app (apps/desktop/src/renderer/src/globals.css).
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-inter",
 });
@@ -28,7 +29,7 @@ const inter = Inter({
 // non-aligned with a mono grid (Chinese is proportional), so listing CJK fonts
 // here would falsely signal alignment guarantees. Browser default fallback handles
 // the rare mixed case correctly.
-const geistMono = Geist_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
@@ -114,7 +115,7 @@ export default async function RootLayout({
     <html
       lang={HTML_LANG[locale]}
       suppressHydrationWarning
-      className={cn("antialiased font-sans h-full", inter.variable, geistMono.variable, sourceSerif.variable)}
+      className={cn("antialiased font-sans h-full", spaceGrotesk.variable, jetbrainsMono.variable, sourceSerif.variable)}
     >
       <body className="h-full overflow-hidden">
         {/*

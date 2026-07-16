@@ -1,6 +1,8 @@
 /* Orynx design tokens — shared across Web + Desktop.
-   Navy blue brand system: hue 264 anchors primary surfaces, brand accents,
-   focus rings, and the sidebar, with a faint cool tint on the app shell. */
+   Agentic Workspace theme: deep navy (#0A1B3D) anchors primary surfaces,
+   headings, and the sidebar; electric blue (#1B4DFF) is the accent — focus
+   rings, brand, links, and active states. Cool light-gray app shell, white
+   cards. Hue 264 throughout. Type: Space Grotesk (sans) + JetBrains Mono. */
 
 @theme inline {
     --font-heading: var(--font-sans);
@@ -66,65 +68,65 @@
     /* Surface system: the app shell is the quiet outer frame; the page canvas
        is where lists, boards, and conversations live; surfaces are reserved
        for bounded content groups; raised surfaces are ephemeral overlays. */
-    --app-shell: oklch(0.962 0.006 264);
-    --page-canvas: oklch(0.988087 0 0);
+    --app-shell: oklch(0.945 0.006 264);       /* #EDF0F4 cool light-gray */
+    --page-canvas: oklch(0.986 0.002 264);     /* #FAFBFD near-white */
     --surface: oklch(1 0 0);
-    --surface-foreground: oklch(0.141 0.005 285.823);
+    --surface-foreground: oklch(0.22 0.075 264); /* #0A1B3D navy ink */
     --surface-raised: oklch(1 0 0);
-    --surface-hover: oklch(0.967 0.001 286.375);
-    --surface-selected: oklch(0.95 0.002 286.375);
-    --surface-selected-foreground: oklch(0.141 0.005 285.823);
-    --surface-border: oklch(0.92 0.004 286.32);
-    --surface-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 1px rgb(15 23 42 / 0.03);
-    --floating-shadow: 0 16px 40px rgb(15 23 42 / 0.14), 0 3px 10px rgb(15 23 42 / 0.08);
+    --surface-hover: oklch(0.965 0.006 264);
+    --surface-selected: oklch(0.95 0.012 264);
+    --surface-selected-foreground: oklch(0.22 0.075 264);
+    --surface-border: oklch(0.92 0.006 264);   /* #E2E8F2 */
+    --surface-shadow: 0 2px 16px oklch(0.22 0.075 264 / 0.07), 0 1px 2px oklch(0.22 0.075 264 / 0.05);
+    --floating-shadow: 0 16px 40px oklch(0.22 0.075 264 / 0.16), 0 3px 10px oklch(0.22 0.075 264 / 0.09);
     /* Menus (dropdown/context/select/popover) hover just above their trigger,
        so they carry a lighter shadow than window-level overlays (dialogs,
        sheets), which keep --floating-shadow. */
-    --menu-shadow: 0 8px 24px rgb(15 23 42 / 0.08), 0 2px 6px rgb(15 23 42 / 0.05);
+    --menu-shadow: 0 8px 24px oklch(0.22 0.075 264 / 0.10), 0 2px 6px oklch(0.22 0.075 264 / 0.06);
     --background: var(--page-canvas);
-    --foreground: oklch(0.141 0.005 285.823);
+    --foreground: oklch(0.22 0.075 264);       /* #0A1B3D */
     --card: var(--surface);
-    --card-foreground: oklch(0.141 0.005 285.823);
+    --card-foreground: oklch(0.22 0.075 264);
     --popover: var(--surface-raised);
-    --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.32 0.105 264);
+    --popover-foreground: oklch(0.22 0.075 264);
+    --primary: oklch(0.215 0.078 264);         /* #0A1B3D navy — buttons */
     --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.967 0.002 264);
-    --secondary-foreground: oklch(0.32 0.105 264);
-    --muted: oklch(0.967 0.002 264);
-    --muted-foreground: oklch(0.552 0.016 285.938);
-    --accent: oklch(0.955 0.008 264);
-    --accent-foreground: oklch(0.32 0.105 264);
+    --secondary: oklch(0.96 0.006 264);
+    --secondary-foreground: oklch(0.215 0.078 264);
+    --muted: oklch(0.96 0.006 264);
+    --muted-foreground: oklch(0.60 0.025 264); /* #7A879C */
+    --accent: oklch(0.95 0.012 264);
+    --accent-foreground: oklch(0.215 0.078 264);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.945 0.004 264);
-    --input: oklch(0.92 0.006 264);
-    --ring: oklch(0.50 0.12 264);
-    /* Brand-derived blue gradient (h=255 = brand hue). chart-1 equals brand
-       so the most important series visually anchors to the product colour;
-       chart-2..5 step lighter + less saturated so a stacked bar reads
-       "primary → secondary → tertiary" at a glance instead of fighting
-       for attention as five equally-weighted greys. */
-    --chart-1: oklch(0.55 0.16 255);
-    --chart-2: oklch(0.66 0.13 255);
-    --chart-3: oklch(0.76 0.10 255);
-    --chart-4: oklch(0.85 0.06 255);
-    --chart-5: oklch(0.92 0.03 255);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.958 0.008 264);
-    --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.32 0.105 264);
+    --border: oklch(0.92 0.006 264);           /* #E2E8F2 */
+    --input: oklch(0.90 0.008 264);
+    --ring: oklch(0.53 0.24 264);              /* #1B4DFF electric blue */
+    /* Brand-derived blue gradient (h=264). chart-1 equals brand so the most
+       important series visually anchors to the product colour; chart-2..5 step
+       lighter + less saturated so a stacked bar reads "primary → tertiary". */
+    --chart-1: oklch(0.53 0.24 264);
+    --chart-2: oklch(0.63 0.18 264);
+    --chart-3: oklch(0.72 0.13 264);
+    --chart-4: oklch(0.82 0.08 264);
+    --chart-5: oklch(0.90 0.04 264);
+    --radius: 0.75rem;                          /* 12px cards */
+    /* Sidebar: deep navy island in light mode (the design's signature), with
+       electric-blue active states. */
+    --sidebar: oklch(0.215 0.078 264);         /* #0A1B3D */
+    --sidebar-foreground: oklch(0.90 0.02 264);
+    --sidebar-primary: oklch(0.53 0.24 264);   /* electric blue */
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.928 0.010 264);
-    --sidebar-accent-foreground: oklch(0.32 0.105 264);
-    --sidebar-border: oklch(0.92 0.006 264);
-    --sidebar-ring: oklch(0.50 0.12 264);
-    --brand: oklch(0.40 0.14 264);
+    --sidebar-accent: oklch(0.31 0.07 264);    /* lighter navy — hover/active */
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: oklch(0.53 0.24 264);
+    --brand: oklch(0.53 0.24 264);             /* electric blue */
     --brand-foreground: oklch(0.985 0 0);
-    --success: oklch(0.55 0.16 145);
-    --warning: oklch(0.75 0.16 85);
-    --info: oklch(0.55 0.18 250);
-    --scrollbar-thumb: oklch(0 0 0 / 10%);
-    --scrollbar-thumb-hover: oklch(0 0 0 / 18%);
+    --success: oklch(0.58 0.15 150);           /* #15803D-ish green */
+    --warning: oklch(0.68 0.15 70);            /* #C2740A-ish amber */
+    --info: oklch(0.53 0.24 264);              /* electric blue */
+    --scrollbar-thumb: oklch(0.22 0.075 264 / 12%);
+    --scrollbar-thumb-hover: oklch(0.22 0.075 264 / 22%);
     --scrollbar-track: transparent;
     /* In-page find (Cmd/Ctrl+F) match tints, painted via the CSS Custom
        Highlight API. Bright fill + dark text so matches stay legible in
@@ -136,16 +138,16 @@
 
 .dark {
     color-scheme: dark;
-    --app-shell: oklch(0.165 0.014 264);
-    --page-canvas: oklch(0.19 0.013 264);
-    --surface: oklch(0.215 0.012 264);
+    --app-shell: oklch(0.165 0.02 264);
+    --page-canvas: oklch(0.19 0.02 264);
+    --surface: oklch(0.215 0.02 264);
     --surface-foreground: oklch(0.985 0 0);
-    --surface-raised: oklch(0.235 0.007 285.885);
-    --surface-hover: oklch(0.274 0.006 286.033);
-    --surface-selected: oklch(0.3 0.006 286.033);
+    --surface-raised: oklch(0.235 0.018 264);
+    --surface-hover: oklch(0.274 0.02 264);
+    --surface-selected: oklch(0.30 0.025 264);
     --surface-selected-foreground: oklch(0.985 0 0);
     --surface-border: oklch(1 0 0 / 10%);
-    --surface-shadow: 0 1px 2px rgb(0 0 0 / 0.2), 0 1px 1px rgb(0 0 0 / 0.16);
+    --surface-shadow: 0 2px 16px rgb(0 0 0 / 0.3), 0 1px 2px rgb(0 0 0 / 0.2);
     --floating-shadow: 0 20px 48px rgb(0 0 0 / 0.46), 0 4px 12px rgb(0 0 0 / 0.28);
     --menu-shadow: 0 10px 28px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.18);
     --background: var(--page-canvas);
@@ -154,40 +156,36 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: var(--surface-raised);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.62 0.15 264);
+    --primary: oklch(0.62 0.19 264);           /* bright electric-navy for contrast on dark */
     --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.278 0.014 264);
+    --secondary: oklch(0.278 0.02 264);
     --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.278 0.014 264);
-    --muted-foreground: oklch(0.71 0.02 264);
-    --accent: oklch(0.30 0.02 264);
+    --muted: oklch(0.278 0.02 264);
+    --muted-foreground: oklch(0.71 0.03 264);
+    --accent: oklch(0.30 0.03 264);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 6%);
+    --border: oklch(1 0 0 / 8%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.60 0.13 264);
-    /* Dark mode mirrors light mode's "primary → secondary" gradient on the
-       brand hue, but flips the lightness curve: the most important series
-       is the brightest (so it pops on the dark background) and trailing
-       series get progressively darker / less saturated. */
-    --chart-1: oklch(0.72 0.16 255);
-    --chart-2: oklch(0.62 0.13 255);
-    --chart-3: oklch(0.52 0.10 255);
-    --chart-4: oklch(0.42 0.06 255);
-    --chart-5: oklch(0.32 0.03 255);
-    --sidebar: oklch(0.205 0.013 264);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.62 0.15 264);
+    --ring: oklch(0.62 0.22 264);              /* electric blue */
+    --chart-1: oklch(0.72 0.20 264);
+    --chart-2: oklch(0.62 0.16 264);
+    --chart-3: oklch(0.52 0.12 264);
+    --chart-4: oklch(0.42 0.08 264);
+    --chart-5: oklch(0.34 0.04 264);
+    --sidebar: oklch(0.185 0.02 264);
+    --sidebar-foreground: oklch(0.90 0.02 264);
+    --sidebar-primary: oklch(0.62 0.22 264);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.29 0.016 264);
+    --sidebar-accent: oklch(0.29 0.03 264);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.60 0.13 264);
-    --brand: oklch(0.66 0.16 264);
+    --sidebar-ring: oklch(0.62 0.22 264);
+    --brand: oklch(0.62 0.20 264);
     --brand-foreground: oklch(0.985 0 0);
-    --success: oklch(0.65 0.15 145);
-    --warning: oklch(0.70 0.16 85);
-    --info: oklch(0.65 0.18 250);
+    --success: oklch(0.65 0.15 150);
+    --warning: oklch(0.70 0.15 70);
+    --info: oklch(0.62 0.22 264);
     --scrollbar-thumb: oklch(1 0 0 / 8%);
     --scrollbar-thumb-hover: oklch(1 0 0 / 18%);
     --scrollbar-track: transparent;

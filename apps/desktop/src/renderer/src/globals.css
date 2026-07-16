@@ -21,13 +21,13 @@
    would falsely signal alignment guarantees. Browser default fallback handles
    the rare mixed case correctly. */
 :root {
-  --font-sans: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont,
+  --font-sans: "Space Grotesk Variable", "Space Grotesk", -apple-system, BlinkMacSystemFont,
                "Segoe UI", "PingFang SC", "Microsoft YaHei",
                "Noto Sans CJK SC", "Apple SD Gothic Neo", "Malgun Gothic",
                "Noto Sans CJK KR", sans-serif;
   --font-serif: "Source Serif 4 Variable", "Source Serif 4", "Iowan Old Style",
                 "Apple Garamond", Baskerville, "Times New Roman", serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
                monospace;
 }
 
@@ -43,7 +43,7 @@
    `ja` or `ja-<region>` (App.tsx sets `ja-JP`), never unrelated subtags
    such as `jam`. */
 html[lang|="ja"] {
-  --font-sans: "Inter Variable", "Inter", "Hiragino Sans",
+  --font-sans: "Space Grotesk Variable", "Space Grotesk", "Hiragino Sans",
                "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Meiryo",
                "Noto Sans CJK JP", "Noto Sans JP", -apple-system,
                BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei",
