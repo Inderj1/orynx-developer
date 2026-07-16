@@ -56,6 +56,12 @@ RETURNING *;
 DELETE FROM runtime_profile
 WHERE id = $1 AND workspace_id = $2;
 
+-- name: DeleteRuntimeProfilesByWorkspace :exec
+-- runtime_profile has no FK to workspace, so a workspace hard-delete must sweep
+-- it explicitly (called from the DeleteWorkspace handler transaction) or its
+-- rows orphan. See TestWorkspaceScopedTablesHaveDeleteCoverage.
+DELETE FROM runtime_profile WHERE workspace_id = $1;
+
 -- name: DeleteAgentRuntimesByProfile :many
 -- Application-layer cascade: migration 120 dropped the DB ON DELETE CASCADE, so
 -- the profile-delete path must remove the profile's registered runtime

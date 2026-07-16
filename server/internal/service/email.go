@@ -35,6 +35,14 @@ type EmailService struct {
 	smtpEHLOName    string
 }
 
+// IsConfigured reports whether a real email transport (Resend or SMTP) is set
+// up. When false, verification codes are only written to the server log, so
+// callers can guide the user to the log / dev-code path instead of implying an
+// email is on its way.
+func (s *EmailService) IsConfigured() bool {
+	return s.client != nil || s.smtpHost != ""
+}
+
 type smtpAuthClient interface {
 	Auth(smtp.Auth) error
 	Extension(string) (bool, string)
@@ -117,7 +125,7 @@ func resolveFromEmail(smtpHost string) string {
 		if resendFrom != "" {
 			return resendFrom
 		}
-		return "noreply@multica.ai"
+		return "noreply@thecloudmantra.com"
 	}
 	if smtpFrom := strings.TrimSpace(os.Getenv("SMTP_FROM_EMAIL")); smtpFrom != "" {
 		return smtpFrom
@@ -350,7 +358,13 @@ func (s *EmailService) SendVerificationCode(to, code string) error {
 		return s.sendSMTP(to, "Your Multica verification code", body)
 	}
 	if s.client == nil {
-		fmt.Printf("[DEV] Verification code for %s: %s\n", to, code)
+		// No email transport configured. Surface the code loudly with guidance
+		// so a self-hoster who hasn't set RESEND_API_KEY / SMTP_HOST can still
+		// log in — otherwise "send code" silently succeeds and the user waits
+		// forever for an email that will never arrive (onboarding wall).
+		fmt.Printf("[DEV] Email delivery is NOT configured — verification code for %s is: %s\n"+
+			"      To send real email set RESEND_API_KEY or SMTP_HOST; to log in now, use this code "+
+			"or MULTICA_DEV_VERIFICATION_CODE (requires MULTICA_DEV_MODE=1, non-production).\n", to, code)
 		return nil
 	}
 	params := &resend.SendEmailRequest{

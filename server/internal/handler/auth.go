@@ -353,6 +353,13 @@ func (h *Handler) SendCode(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.EmailService.SendVerificationCode(email, code); err != nil {
 		slog.Error("failed to send verification code", "email", email, "error", err)
+		if devModeEnabled() {
+			// Don't dead-end dev/self-host login on a flaky or misconfigured mail
+			// transport — point the operator at the log / dev-code path.
+			writeError(w, http.StatusInternalServerError,
+				"failed to send email — in dev mode, log in with MULTICA_DEV_VERIFICATION_CODE or the code printed in the server log")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to send verification code")
 		return
 	}

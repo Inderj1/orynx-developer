@@ -736,16 +736,28 @@ export function useRealtimeSync(
       },
     };
 
+    // Coalesce windows per event prefix. A single `task:` lifecycle event fans
+    // out to ~7 workspace-wide invalidations (agent presence, activity series,
+    // run counts, per-issue task/usage lists, squad member status, comment
+    // trigger previews); under heavy agent load many arrive in quick
+    // succession, and each debounced batch triggers refetches across every
+    // mounted consumer AND every connected client. Presence and activity are
+    // not latency-critical, so a wider window collapses a burst of
+    // near-simultaneous task events into a single refetch instead of one storm
+    // per event. Other prefixes keep the snappy default.
+    const TASK_DEBOUNCE_MS = 300;
+    const DEFAULT_DEBOUNCE_MS = 100;
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     const debouncedRefresh = (prefix: string, fn: () => void) => {
       const existing = timers.get(prefix);
       if (existing) clearTimeout(existing);
+      const windowMs = prefix === "task" ? TASK_DEBOUNCE_MS : DEFAULT_DEBOUNCE_MS;
       timers.set(
         prefix,
         setTimeout(() => {
           timers.delete(prefix);
           fn();
-        }, 100),
+        }, windowMs),
       );
     };
 

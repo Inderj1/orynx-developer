@@ -225,7 +225,10 @@ WHERE i.workspace_id = $1
              AND a.owner_id     = sqlc.narg('involves_user_id')::uuid
     ))
   )
-ORDER BY i.position ASC, i.created_at DESC;
+ORDER BY i.position ASC, i.created_at DESC
+-- Bounded so an enormous board can't return every open issue in one payload.
+-- 2000 covers realistic boards; beyond that the UI should paginate by column.
+LIMIT 2000;
 
 -- name: CountIssues :one
 -- See ListIssues for the semantics of involves_user_id.

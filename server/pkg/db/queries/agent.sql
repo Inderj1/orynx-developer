@@ -1164,9 +1164,12 @@ SELECT t.* FROM (
 ) t;
 
 -- name: ListTasksByIssue :many
+-- Bounded so a pathological issue with thousands of task rows can't return an
+-- unbounded payload. 1000 is far above any real per-issue task count.
 SELECT * FROM agent_task_queue
 WHERE issue_id = $1
-ORDER BY created_at DESC;
+ORDER BY created_at DESC
+LIMIT 1000;
 
 -- name: UpdateAgentStatus :one
 UPDATE agent SET status = $2, updated_at = now()

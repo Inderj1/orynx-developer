@@ -106,6 +106,13 @@ WHERE workspace_id = $1 AND autopilot_id = $2
 ORDER BY created_at DESC
 LIMIT 1;
 
+-- name: DeleteAutopilotRuleVersionsByWorkspace :exec
+-- autopilot_rule_version has no FK and was never deleted, so its rows
+-- accumulated forever. A workspace hard-delete must sweep it explicitly
+-- (called from the DeleteWorkspace handler transaction). See
+-- TestWorkspaceScopedTablesHaveDeleteCoverage.
+DELETE FROM autopilot_rule_version WHERE workspace_id = $1;
+
 -- =====================
 -- Autopilot Trigger CRUD
 -- =====================

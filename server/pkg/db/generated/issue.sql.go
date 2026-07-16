@@ -1058,6 +1058,7 @@ WHERE i.workspace_id = $1
     ))
   )
 ORDER BY i.position ASC, i.created_at DESC
+LIMIT 2000
 `
 
 type ListOpenIssuesParams struct {
@@ -1098,6 +1099,8 @@ type ListOpenIssuesRow struct {
 
 // See ListIssues for the semantics of involves_user_id (mirrors the 4-branch
 // filter; member-direct assignment is intentionally excluded).
+// Bounded so an enormous board can't return every open issue in one payload.
+// 2000 covers realistic boards; beyond that the UI should paginate by column.
 func (q *Queries) ListOpenIssues(ctx context.Context, arg ListOpenIssuesParams) ([]ListOpenIssuesRow, error) {
 	rows, err := q.db.Query(ctx, listOpenIssues,
 		arg.WorkspaceID,

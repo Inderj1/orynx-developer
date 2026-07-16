@@ -32,7 +32,7 @@ Multica supports two email backends. `SMTP_HOST` takes priority when set; otherw
 | Variable | Description |
 |----------|-------------|
 | `RESEND_API_KEY` | Your Resend API key |
-| `RESEND_FROM_EMAIL` | Sender email address (default: `noreply@multica.ai`) |
+| `RESEND_FROM_EMAIL` | Sender email address (default: `noreply@thecloudmantra.com`) |
 
 #### Option B: SMTP relay (for self-hosted / on-premise deployments)
 

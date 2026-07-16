@@ -113,7 +113,7 @@ backend:
     frontendOrigin: http://multica.dev.lan
     corsAllowedOrigins: ""
     cookieDomain: ""
-    resendFromEmail: noreply@multica.ai
+    resendFromEmail: noreply@thecloudmantra.com
     allowSignup: true
     allowedEmails: ""
     allowedEmailDomains: ""

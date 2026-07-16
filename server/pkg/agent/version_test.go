@@ -150,7 +150,10 @@ func TestCheckMinVersion(t *testing.T) {
 		{"claude", "v2.0.0", false},
 		{"claude", "1.0.128", true},
 		{"claude", "1.9.99", true},
-		{"claude", "invalid", true},
+		// Unparsable version → treated as "version unknown" and ALLOWED, not
+		// dropped. Only a version that actually parses below the minimum gates.
+		{"claude", "invalid", false},
+		{"claude", "Install GitHub Copilot CLI? (y/n)", false},
 		{"codex", "codex-cli 0.118.0", false},
 		{"codex", "codex-cli 0.100.0", false},
 		{"codex", "codex-cli 0.99.0", true},

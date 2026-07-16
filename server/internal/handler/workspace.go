@@ -789,6 +789,23 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// runtime_profile and autopilot_rule_version carry a workspace_id but no FK
+	// to workspace, so they are not swept by the DeleteWorkspace CASCADE and must
+	// be removed explicitly in this same transaction — otherwise their rows
+	// orphan (autopilot_rule_version had no delete path at all). See
+	// TestWorkspaceScopedTablesHaveDeleteCoverage.
+	if err := qtx.DeleteRuntimeProfilesByWorkspace(r.Context(), requester.WorkspaceID); err != nil {
+		slog.Warn("delete workspace runtime profiles failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+		writeError(w, http.StatusInternalServerError, "failed to delete workspace")
+		return
+	}
+
+	if err := qtx.DeleteAutopilotRuleVersionsByWorkspace(r.Context(), requester.WorkspaceID); err != nil {
+		slog.Warn("delete workspace autopilot rule versions failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+		writeError(w, http.StatusInternalServerError, "failed to delete workspace")
+		return
+	}
+
 	// At this point workspaceMember has resolved → workspaceID is a valid UUID
 	// (the lookup would have errored otherwise), so reuse the resolved value.
 	if err := qtx.DeleteWorkspace(r.Context(), requester.WorkspaceID); err != nil {

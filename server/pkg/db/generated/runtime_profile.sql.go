@@ -157,6 +157,18 @@ func (q *Queries) DeleteRuntimeProfile(ctx context.Context, arg DeleteRuntimePro
 	return err
 }
 
+const deleteRuntimeProfilesByWorkspace = `-- name: DeleteRuntimeProfilesByWorkspace :exec
+DELETE FROM runtime_profile WHERE workspace_id = $1
+`
+
+// runtime_profile has no FK to workspace, so a workspace hard-delete must sweep
+// it explicitly (called from the DeleteWorkspace handler transaction) or its
+// rows orphan. See TestWorkspaceScopedTablesHaveDeleteCoverage.
+func (q *Queries) DeleteRuntimeProfilesByWorkspace(ctx context.Context, workspaceID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRuntimeProfilesByWorkspace, workspaceID)
+	return err
+}
+
 const getRuntimeProfile = `-- name: GetRuntimeProfile :one
 SELECT id, workspace_id, display_name, protocol_family, command_name, description, fixed_args, visibility, created_by, enabled, created_at, updated_at FROM runtime_profile
 WHERE id = $1

@@ -230,7 +230,7 @@ func TestNewEmailService_FromEmailResolution(t *testing.T) {
 		},
 		{
 			name: "default",
-			want: "noreply@multica.ai",
+			want: "noreply@thecloudmantra.com",
 		},
 	}
 
@@ -320,7 +320,7 @@ func TestBuildInvitationParams_EscapesHTMLInBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := buildInvitationParams(
-				"noreply@multica.ai",
+				"noreply@thecloudmantra.com",
 				"invitee@example.com",
 				tt.inviter,
 				tt.workspace,
@@ -342,7 +342,7 @@ func TestBuildInvitationParams_EscapesHTMLInBody(t *testing.T) {
 
 func TestBuildInvitationParams_SubjectStripsControls(t *testing.T) {
 	p := buildInvitationParams(
-		"noreply@multica.ai",
+		"noreply@thecloudmantra.com",
 		"invitee@example.com",
 		"Alice\r\n",
 		"Acme\t",
@@ -359,7 +359,7 @@ func TestBuildInvitationParams_SubjectStripsControls(t *testing.T) {
 func TestBuildInvitationParams_SubjectNotHTMLEscaped(t *testing.T) {
 	// Subject is not HTML-rendered; entities would render literally in inboxes.
 	p := buildInvitationParams(
-		"noreply@multica.ai",
+		"noreply@thecloudmantra.com",
 		"invitee@example.com",
 		"Alice",
 		"Acme & Co.",
@@ -376,7 +376,7 @@ func TestBuildInvitationParams_SubjectNotHTMLEscaped(t *testing.T) {
 func TestBuildInvitationParams_SubjectTruncated(t *testing.T) {
 	longWorkspace := strings.Repeat("A", 200)
 	p := buildInvitationParams(
-		"noreply@multica.ai",
+		"noreply@thecloudmantra.com",
 		"invitee@example.com",
 		"Alice",
 		longWorkspace,
@@ -395,13 +395,13 @@ func TestBuildInvitationParams_SubjectTruncated(t *testing.T) {
 
 func TestBuildInvitationParams_ToAndFromPassedThrough(t *testing.T) {
 	p := buildInvitationParams(
-		"noreply@multica.ai",
+		"noreply@thecloudmantra.com",
 		"invitee@example.com",
 		"Alice",
 		"Acme",
 		"https://multica.ai/invite/abc",
 	)
-	if p.From != "noreply@multica.ai" {
+	if p.From != "noreply@thecloudmantra.com" {
 		t.Errorf("From = %q", p.From)
 	}
 	if len(p.To) != 1 || p.To[0] != "invitee@example.com" {

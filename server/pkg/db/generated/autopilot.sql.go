@@ -481,6 +481,19 @@ func (q *Queries) DeleteAutopilotCollaboratorsForAutopilot(ctx context.Context, 
 	return err
 }
 
+const deleteAutopilotRuleVersionsByWorkspace = `-- name: DeleteAutopilotRuleVersionsByWorkspace :exec
+DELETE FROM autopilot_rule_version WHERE workspace_id = $1
+`
+
+// autopilot_rule_version has no FK and was never deleted, so its rows
+// accumulated forever. A workspace hard-delete must sweep it explicitly
+// (called from the DeleteWorkspace handler transaction). See
+// TestWorkspaceScopedTablesHaveDeleteCoverage.
+func (q *Queries) DeleteAutopilotRuleVersionsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAutopilotRuleVersionsByWorkspace, workspaceID)
+	return err
+}
+
 const deleteAutopilotSubscribersForAutopilot = `-- name: DeleteAutopilotSubscribersForAutopilot :exec
 DELETE FROM autopilot_subscriber
 WHERE autopilot_id = $1
