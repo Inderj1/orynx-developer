@@ -152,18 +152,29 @@ func (q *Queries) GetProjectInWorkspace(ctx context.Context, arg GetProjectInWor
 const getProjectIssueStats = `-- name: GetProjectIssueStats :many
 SELECT project_id,
        count(*)::bigint AS total_count,
-       count(*) FILTER (WHERE status IN ('done', 'cancelled'))::bigint AS done_count
+       count(*) FILTER (WHERE status IN ('done', 'cancelled'))::bigint AS done_count,
+       count(*) FILTER (WHERE status = 'in_progress')::bigint AS in_progress_count,
+       count(*) FILTER (WHERE status = 'in_review')::bigint AS in_review_count,
+       count(*) FILTER (WHERE status = 'blocked')::bigint AS blocked_count
 FROM issue
 WHERE project_id = ANY($1::uuid[])
 GROUP BY project_id
 `
 
 type GetProjectIssueStatsRow struct {
-	ProjectID  pgtype.UUID `json:"project_id"`
-	TotalCount int64       `json:"total_count"`
-	DoneCount  int64       `json:"done_count"`
+	ProjectID       pgtype.UUID `json:"project_id"`
+	TotalCount      int64       `json:"total_count"`
+	DoneCount       int64       `json:"done_count"`
+	InProgressCount int64       `json:"in_progress_count"`
+	InReviewCount   int64       `json:"in_review_count"`
+	BlockedCount    int64       `json:"blocked_count"`
 }
 
+// Per-project issue rollup for the projects list / detail. total_count and
+// done_count power the progress ring; the per-status counts power the
+// multi-project task-health tracker (see the projects page). Statuses not
+// broken out here (todo, backlog) are derivable: todo/other = total - done -
+// in_progress - in_review - blocked.
 func (q *Queries) GetProjectIssueStats(ctx context.Context, projectIds []pgtype.UUID) ([]GetProjectIssueStatsRow, error) {
 	rows, err := q.db.Query(ctx, getProjectIssueStats, projectIds)
 	if err != nil {
@@ -173,7 +184,14 @@ func (q *Queries) GetProjectIssueStats(ctx context.Context, projectIds []pgtype.
 	items := []GetProjectIssueStatsRow{}
 	for rows.Next() {
 		var i GetProjectIssueStatsRow
-		if err := rows.Scan(&i.ProjectID, &i.TotalCount, &i.DoneCount); err != nil {
+		if err := rows.Scan(
+			&i.ProjectID,
+			&i.TotalCount,
+			&i.DoneCount,
+			&i.InProgressCount,
+			&i.InReviewCount,
+			&i.BlockedCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

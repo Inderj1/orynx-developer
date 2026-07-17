@@ -20,6 +20,13 @@ export interface Project {
   updated_at: string;
   issue_count: number;
   done_count: number;
+  // Per-status task counts for the multi-project health tracker. Present on the
+  // projects list from new backends; optional so an older backend (or the
+  // detail endpoint) that omits them doesn't break parsing — the UI defaults
+  // them to 0.
+  in_progress_count?: number;
+  in_review_count?: number;
+  blocked_count?: number;
   resource_count: number;
 }
 

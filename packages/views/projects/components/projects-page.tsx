@@ -140,7 +140,9 @@ function leadFilterValue(p: Project): string | null {
 
 const COLUMN_WIDTHS: Record<ProjectColumnKey, number> = {
   priority: 116,
-  progress: 88,
+  // Wider than the bare progress ring to fit the task-health dots
+  // (in-progress / in-review / blocked) rendered alongside it.
+  progress: 168,
   lead: 132,
   issues: 80,
   created: 104,
@@ -183,31 +185,56 @@ function columnTrackVars(
   } as React.CSSProperties;
 }
 
+// One compact task-state dot with a count, shown only when the count is
+// non-zero. Drives the at-a-glance multi-project health read: amber = work in
+// flight, blue = awaiting review, red = blocked (needs attention).
+function StateDot({ n, className, title }: { n: number; className: string; title: string }) {
+  if (!n) return null;
+  return (
+    <span className="flex items-center gap-0.5 text-[11px] tabular-nums text-muted-foreground" title={title}>
+      <span className={`size-1.5 rounded-full ${className}`} />
+      {n}
+    </span>
+  );
+}
+
 function ProgressRing({ project }: { project: Project }) {
   if (project.issue_count === 0) {
     return <span className="text-xs text-muted-foreground/40">—</span>;
   }
   const pct = Math.round((project.done_count / project.issue_count) * 100);
+  // New backends return these; older ones don't — default to 0 so the health
+  // dots simply don't render rather than breaking the row.
+  const inProgress = project.in_progress_count ?? 0;
+  const inReview = project.in_review_count ?? 0;
+  const blocked = project.blocked_count ?? 0;
   return (
-    <span className="flex items-center gap-1.5">
-      <span className="relative h-3.5 w-3.5">
-        <svg className="h-3.5 w-3.5 -rotate-90" viewBox="0 0 16 16">
-          <circle className="text-muted" strokeWidth="2" stroke="currentColor" fill="none" r="6" cx="8" cy="8" />
-          <circle
-            className="text-emerald-500"
-            strokeWidth="2"
-            stroke="currentColor"
-            fill="none"
-            r="6"
-            cx="8"
-            cy="8"
-            strokeDasharray={`${pct * 0.377} 37.7`}
-            strokeLinecap="round"
-          />
-        </svg>
+    <span className="flex items-center gap-2">
+      <span className="flex items-center gap-1.5">
+        <span className="relative h-3.5 w-3.5">
+          <svg className="h-3.5 w-3.5 -rotate-90" viewBox="0 0 16 16">
+            <circle className="text-muted" strokeWidth="2" stroke="currentColor" fill="none" r="6" cx="8" cy="8" />
+            <circle
+              className="text-emerald-500"
+              strokeWidth="2"
+              stroke="currentColor"
+              fill="none"
+              r="6"
+              cx="8"
+              cy="8"
+              strokeDasharray={`${pct * 0.377} 37.7`}
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {project.done_count}/{project.issue_count}
+        </span>
       </span>
-      <span className="text-xs tabular-nums text-muted-foreground">
-        {project.done_count}/{project.issue_count}
+      <span className="flex items-center gap-1.5">
+        <StateDot n={inProgress} className="bg-amber-500" title={`${inProgress} in progress`} />
+        <StateDot n={inReview} className="bg-blue-500" title={`${inReview} in review`} />
+        <StateDot n={blocked} className="bg-red-500" title={`${blocked} blocked`} />
       </span>
     </span>
   );
