@@ -194,6 +194,12 @@ func writeContextFiles(workDir, provider string, ctx TaskContextForEnv, manifest
 		return fmt.Errorf("write project resources: %w", err)
 	}
 
+	// Managed settings.json guardrail (opt-in via MULTICA_AGENT_BASH_GUARD).
+	// No-op when disabled or when the provider does not use the schema.
+	if err := writeManagedSettings(workDir, provider, manifest); err != nil {
+		return fmt.Errorf("write managed settings: %w", err)
+	}
+
 	return nil
 }
 
