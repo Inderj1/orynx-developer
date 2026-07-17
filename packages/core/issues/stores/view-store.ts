@@ -126,6 +126,10 @@ export interface IssueViewState {
   ganttShowCompleted: boolean;
   /** Active swimlane grouping dimension. */
   swimlaneGrouping: SwimlaneGrouping;
+  /** True once the user has explicitly picked a swimlane grouping. Gates the
+   *  auto-default-to-project behavior for multi-project workspaces so it fires
+   *  at most once and never overrides an explicit choice. */
+  swimlaneGroupingUserSet: boolean;
   /** Persisted lane order, keyed by grouping. Entries are raw lane ids
    *  (parent issue id, project id, or `<assigneeType>:<assigneeId>`). */
   swimlaneOrders: Record<SwimlaneGrouping, string[]>;
@@ -196,6 +200,7 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
   ganttZoom: "week",
   ganttShowCompleted: false,
   swimlaneGrouping: "assignee",
+  swimlaneGroupingUserSet: false,
   swimlaneOrders: { parent: [], project: [], assignee: [] },
   collapsedSwimlanes: { parent: [], project: [], assignee: [] },
 
@@ -325,7 +330,7 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
         ? state.listCollapsedStatuses.filter((s) => s !== status)
         : [...state.listCollapsedStatuses, status],
     })),
-  setSwimlaneGrouping: (grouping) => set({ swimlaneGrouping: grouping }),
+  setSwimlaneGrouping: (grouping) => set({ swimlaneGrouping: grouping, swimlaneGroupingUserSet: true }),
   setSwimlaneOrder: (order) =>
     set((state) => ({
       swimlaneOrders: { ...state.swimlaneOrders, [state.swimlaneGrouping]: order },
@@ -373,6 +378,7 @@ export const viewStorePersistOptions = (name: string) => ({
     ganttZoom: state.ganttZoom,
     ganttShowCompleted: state.ganttShowCompleted,
     swimlaneGrouping: state.swimlaneGrouping,
+    swimlaneGroupingUserSet: state.swimlaneGroupingUserSet,
     swimlaneOrders: state.swimlaneOrders,
     collapsedSwimlanes: state.collapsedSwimlanes,
   }),
