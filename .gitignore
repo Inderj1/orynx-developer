@@ -69,3 +69,4 @@ data/
 .kilo
 .idea
 .gstack/
+*private-key.pem
