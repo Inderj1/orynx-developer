@@ -61,6 +61,7 @@ func init() {
 	issueApprovalCheckCmd.Flags().String("command", "", "The exact command to check")
 	issueApprovalCheckCmd.Flags().String("action-key", "", "Precomputed action key (alternative to --command)")
 	issueApprovalApproveCmd.Flags().String("output", "json", "Output format: table or json")
+	issueApprovalApproveCmd.Flags().Bool("learn", false, "Also learn a rule so this class of action is auto-approved next time (operational actions only; security actions are never learned)")
 	issueApprovalRejectCmd.Flags().String("output", "json", "Output format: table or json")
 
 	issueCmd.AddCommand(issueApprovalCmd)
@@ -130,7 +131,8 @@ func runIssueApprovalDecide(cmd *cobra.Command, args []string, decision string) 
 		return fmt.Errorf("resolve issue: %w", err)
 	}
 	approvalID := args[1]
-	body := map[string]string{"decision": decision}
+	learn, _ := cmd.Flags().GetBool("learn")
+	body := map[string]any{"decision": decision, "learn": learn}
 	var result map[string]any
 	path := "/api/issues/" + issueRef.ID + "/approvals/" + approvalID + "/decide"
 	if err := client.PostJSON(ctx, path, body, &result); err != nil {

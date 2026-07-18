@@ -1256,6 +1256,14 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			// Dashboard — workspace-wide token + run-time rollups for the
 			// "/{slug}/dashboard" page. Optional ?project_id filter scopes
 			// the rollup to a single project.
+			// Approval-gate learning layer: the rules view (learned policies),
+			// revoke (correctability), and the decision "why" feed (explainability).
+			r.Route("/api/approvals", func(r chi.Router) {
+				r.Get("/policies", h.ListPolicies)
+				r.Post("/policies/{policyId}/revoke", h.RevokePolicy)
+				r.Get("/decisions", h.ListDecisions)
+			})
+
 			r.Route("/api/dashboard", func(r chi.Router) {
 				r.Get("/usage/daily", h.GetDashboardUsageDaily)
 				r.Get("/usage/by-agent", h.GetDashboardUsageByAgent)

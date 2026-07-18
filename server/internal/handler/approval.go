@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -130,34 +131,72 @@ func (h *Handler) RequestApproval(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, approvalToResponse(created))
 }
 
-// CheckApproval (POST /api/issues/{id}/approvals/check) — agent-safe. The hook
-// calls this before an irreversible command. Returns the decision and, when
-// approved, ATOMICALLY consumes it (single-use) so one approval authorizes
-// exactly one execution. Response: {"decision": "approved"|"pending"|"rejected"|"none"}.
+// logApprovalDecision appends a row to the "why" feed. Best-effort — a failed
+// log write must never change the gate decision.
+func (h *Handler) logApprovalDecision(ctx context.Context, issue db.Issue, agentID pgtype.UUID, actionClass, command, tier, decision, reason string, policyID pgtype.UUID) {
+	_, _ = h.Queries.LogDecision(ctx, db.LogDecisionParams{
+		WorkspaceID: issue.WorkspaceID,
+		IssueID:     issue.ID,
+		AgentID:     agentID,
+		ActionClass: actionClass,
+		Command:     command,
+		Tier:        tier,
+		Decision:    decision,
+		PolicyID:    policyID,
+		Reason:      reason,
+	})
+}
+
+// CheckApproval (POST /api/issues/{id}/approvals/check) — agent-safe. The gate's
+// brain. Classifies the command, and:
+//   - operational tier: auto-approves if a LEARNED POLICY matches (this is the
+//     "asked once, never again"); else falls back to a one-time approval.
+//   - security tier: NEVER consults policies — only an explicit one-time approval
+//     lets it through. This is the uncompromisable floor.
+// Every decision is logged with its "why". Response: {"decision", "tier",
+// "action_class"} where decision ∈ approved|pending|rejected|none.
 func (h *Handler) CheckApproval(w http.ResponseWriter, r *http.Request) {
 	issueID := chi.URLParam(r, "id")
 	issue, ok := h.loadIssueForUser(w, r, issueID)
 	if !ok {
 		return
 	}
+	userID, _ := requireUserID(w, r)
 	var req struct {
 		Command   string `json:"command"`
 		ActionKey string `json:"action_key"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	actionKey := strings.TrimSpace(req.ActionKey)
-	if actionKey == "" && strings.TrimSpace(req.Command) != "" {
-		actionKey = ComputeActionKey(uuidToString(issue.ID), req.Command)
-	}
-	if actionKey == "" {
-		writeError(w, http.StatusBadRequest, "command or action_key is required")
+	command := strings.TrimSpace(req.Command)
+	if command == "" {
+		writeError(w, http.StatusBadRequest, "command is required")
 		return
 	}
+	actionKey := ComputeActionKey(uuidToString(issue.ID), command)
+	tier, actionClass := classifyCommand(command)
+	actorType, actorID := h.resolveActor(r, userID, uuidToString(issue.WorkspaceID))
+	var agentID pgtype.UUID
+	if actorType == "agent" {
+		agentID = parseUUID(actorID)
+	}
+
+	// Operational tier only: a matching learned policy auto-approves — the
+	// "asked once, remembered forever". Security tier skips this entirely.
+	if tier == tierOperational {
+		if policy, matched := h.matchPolicy(r.Context(), issue.WorkspaceID, agentID, actionClass); matched {
+			reason := "Auto-approved by a learned rule (policy " + uuidToString(policy.ID)[:8] + ") — you approved this class of action before."
+			h.logApprovalDecision(r.Context(), issue, agentID, actionClass, command, tier, "allowed_by_policy", reason, policy.ID)
+			writeJSON(w, http.StatusOK, map[string]string{"decision": "approved", "tier": tier, "action_class": actionClass})
+			return
+		}
+	}
+
+	// Fall back to a one-time approval (the only path for the security tier).
 	latest, err := h.Queries.GetLatestApprovalForAction(r.Context(), db.GetLatestApprovalForActionParams{
 		IssueID: issue.ID, ActionKey: actionKey,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		writeJSON(w, http.StatusOK, map[string]string{"decision": "none"})
+		writeJSON(w, http.StatusOK, map[string]string{"decision": "none", "tier": tier, "action_class": actionClass})
 		return
 	}
 	if err != nil {
@@ -166,18 +205,36 @@ func (h *Handler) CheckApproval(w http.ResponseWriter, r *http.Request) {
 	}
 	switch latest.Status {
 	case "approved":
-		// Consume atomically — a concurrent second run finds it already consumed.
 		if _, cerr := h.Queries.ConsumeApproval(r.Context(), latest.ID); cerr != nil {
-			writeJSON(w, http.StatusOK, map[string]string{"decision": "pending"})
+			writeJSON(w, http.StatusOK, map[string]string{"decision": "pending", "tier": tier, "action_class": actionClass})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"decision": "approved"})
+		h.logApprovalDecision(r.Context(), issue, agentID, actionClass, command, tier, "approved_once", "Allowed by your one-time approval.", pgtype.UUID{})
+		writeJSON(w, http.StatusOK, map[string]string{"decision": "approved", "tier": tier, "action_class": actionClass})
 	case "consumed":
-		// Already used — treat as no live approval (a new request is needed).
-		writeJSON(w, http.StatusOK, map[string]string{"decision": "none"})
+		writeJSON(w, http.StatusOK, map[string]string{"decision": "none", "tier": tier, "action_class": actionClass})
 	default: // pending, rejected
-		writeJSON(w, http.StatusOK, map[string]string{"decision": latest.Status})
+		writeJSON(w, http.StatusOK, map[string]string{"decision": latest.Status, "tier": tier, "action_class": actionClass})
 	}
+}
+
+// matchPolicy returns the first active learned rule that authorizes actionClass
+// for this agent. A policy with a NULL agent_id applies to any agent. Security
+// actions never reach here.
+func (h *Handler) matchPolicy(ctx context.Context, workspaceID, agentID pgtype.UUID, actionClass string) (db.ApprovalPolicy, bool) {
+	policies, err := h.Queries.FindMatchingPolicies(ctx, db.FindMatchingPoliciesParams{
+		WorkspaceID: workspaceID, ActionClass: actionClass,
+	})
+	if err != nil {
+		return db.ApprovalPolicy{}, false
+	}
+	for _, p := range policies {
+		// NULL agent_id = any agent; else must match this agent.
+		if !p.AgentID.Valid || (agentID.Valid && p.AgentID.Bytes == agentID.Bytes) {
+			return p, true
+		}
+	}
+	return db.ApprovalPolicy{}, false
 }
 
 // DecideApproval (POST /api/issues/{id}/approvals/{approvalId}/decide) —
@@ -204,6 +261,10 @@ func (h *Handler) DecideApproval(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		Decision string `json:"decision"`
+		// Learn=true graduates an approval into a reusable policy so this class
+		// of action is auto-approved next time ("asked once"). Ignored for
+		// security-tier actions — those can never be learned.
+		Learn bool `json:"learn"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -233,6 +294,21 @@ func (h *Handler) DecideApproval(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to record decision")
 		return
+	}
+	// Approve-and-learn: graduate this approval into a policy so the same class
+	// of action auto-approves next time. THE SECURITY FLOOR: only operational
+	// actions are learnable — a security-tier command is never turned into a
+	// policy, no matter what the member requests.
+	if status == "approved" && req.Learn {
+		if tier, actionClass := classifyCommand(decided.Command); tier == tierOperational {
+			_, _ = h.Queries.CreatePolicy(r.Context(), db.CreatePolicyParams{
+				WorkspaceID:      issue.WorkspaceID,
+				AgentID:          decided.RequestedByAgent, // scope the rule to the agent that asked
+				ActionClass:      actionClass,
+				SourceApprovalID: decided.ID,
+				CreatedByMember:  parseUUID(userID),
+			})
+		}
 	}
 	// On approval, re-trigger the issue so the agent resumes and the hook now
 	// allows the action. blocked -> todo enqueues a fresh run (WillEnqueueRun).
@@ -266,6 +342,88 @@ func (h *Handler) ListPendingApprovals(w http.ResponseWriter, r *http.Request) {
 		resp[i] = approvalToResponse(a)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"approvals": resp})
+}
+
+// ListPolicies (GET /api/approvals/policies) — member view of the learned rules
+// (the brain-replica, laid open): every rule with its provenance, active + revoked.
+func (h *Handler) ListPolicies(w http.ResponseWriter, r *http.Request) {
+	workspaceID := h.resolveWorkspaceID(r)
+	if _, ok := h.workspaceMember(w, r, workspaceID); !ok {
+		return
+	}
+	rows, err := h.Queries.ListPolicies(r.Context(), parseUUID(workspaceID))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list policies")
+		return
+	}
+	out := make([]map[string]any, len(rows))
+	for i, p := range rows {
+		out[i] = map[string]any{
+			"id": uuidToString(p.ID), "agent_id": uuidToPtr(p.AgentID),
+			"action_class": p.ActionClass, "resource": textToPtr(p.Resource),
+			"source_approval_id": uuidToPtr(p.SourceApprovalID),
+			"created_at":         timestampToString(p.CreatedAt),
+			"revoked":            p.RevokedAt.Valid,
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"policies": out})
+}
+
+// RevokePolicy (POST /api/approvals/policies/{policyId}/revoke) — MEMBER-ONLY.
+// Correctability: stop future auto-approvals from a learned rule.
+func (h *Handler) RevokePolicy(w http.ResponseWriter, r *http.Request) {
+	workspaceID := h.resolveWorkspaceID(r)
+	member, ok := h.workspaceMember(w, r, workspaceID)
+	if !ok {
+		return
+	}
+	actorType, _ := h.resolveActor(r, uuidToString(member.UserID), workspaceID)
+	if actorType != "member" {
+		writeError(w, http.StatusForbidden, "only a member can revoke a policy")
+		return
+	}
+	revoked, err := h.Queries.RevokePolicy(r.Context(), db.RevokePolicyParams{
+		RevokedBy:   member.UserID,
+		ID:          parseUUID(chi.URLParam(r, "policyId")),
+		WorkspaceID: parseUUID(workspaceID),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusConflict, "policy not found or already revoked")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to revoke policy")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": uuidToString(revoked.ID), "revoked": true})
+}
+
+// ListDecisions (GET /api/approvals/decisions) — the "why" feed: every gated
+// decision + its reasoning, most recent first. This is how the operator asks
+// "why did you do that" and traces it back to a rule or a one-time approval.
+func (h *Handler) ListDecisions(w http.ResponseWriter, r *http.Request) {
+	workspaceID := h.resolveWorkspaceID(r)
+	if _, ok := h.workspaceMember(w, r, workspaceID); !ok {
+		return
+	}
+	rows, err := h.Queries.ListDecisions(r.Context(), db.ListDecisionsParams{
+		WorkspaceID: parseUUID(workspaceID),
+		Lim:         100,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list decisions")
+		return
+	}
+	out := make([]map[string]any, len(rows))
+	for i, d := range rows {
+		out[i] = map[string]any{
+			"id": uuidToString(d.ID), "issue_id": uuidToPtr(d.IssueID),
+			"action_class": d.ActionClass, "command": d.Command, "tier": d.Tier,
+			"decision": d.Decision, "policy_id": uuidToPtr(d.PolicyID),
+			"reason": d.Reason, "created_at": timestampToString(d.CreatedAt),
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"decisions": out})
 }
 
 func truncate(s string, n int) string {

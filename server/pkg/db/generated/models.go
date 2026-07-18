@@ -156,6 +156,34 @@ type AgentToLabel struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type ApprovalDecisionLog struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	TaskID      pgtype.UUID        `json:"task_id"`
+	AgentID     pgtype.UUID        `json:"agent_id"`
+	ActionClass string             `json:"action_class"`
+	Command     string             `json:"command"`
+	Tier        string             `json:"tier"`
+	Decision    string             `json:"decision"`
+	PolicyID    pgtype.UUID        `json:"policy_id"`
+	Reason      string             `json:"reason"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type ApprovalPolicy struct {
+	ID               pgtype.UUID        `json:"id"`
+	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
+	AgentID          pgtype.UUID        `json:"agent_id"`
+	ActionClass      string             `json:"action_class"`
+	Resource         pgtype.Text        `json:"resource"`
+	SourceApprovalID pgtype.UUID        `json:"source_approval_id"`
+	CreatedByMember  pgtype.UUID        `json:"created_by_member"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	RevokedAt        pgtype.Timestamptz `json:"revoked_at"`
+	RevokedBy        pgtype.UUID        `json:"revoked_by"`
+}
+
 type Attachment struct {
 	ID            pgtype.UUID        `json:"id"`
 	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
