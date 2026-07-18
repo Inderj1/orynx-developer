@@ -70,3 +70,7 @@ data/
 .idea
 .gstack/
 *private-key.pem
+
+# local operational backups (DB dumps, platform config, VM config — contain
+# secrets and a full DB snapshot; must never be committed or pushed)
+infra/orynx-backups/
