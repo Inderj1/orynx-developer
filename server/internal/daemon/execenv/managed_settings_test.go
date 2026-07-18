@@ -79,6 +79,51 @@ func TestWriteManagedSettings_EnabledWritesFiles(t *testing.T) {
 // TestBashGuardScriptBehavior runs the actual guard against sample payloads to
 // prove the regexes deny catastrophic commands and allow ordinary ones. Skipped
 // when python3 is unavailable (the guard is invoked as `python3 bash-guard.py`).
+func TestHookScriptComposition(t *testing.T) {
+	tier1 := hookScript(false)
+	if strings.Contains(tier1, "approval gate") || strings.Contains(tier1, "IRREVERSIBLE") {
+		t.Fatal("approval-gate-off script must not include tier-2 approval logic")
+	}
+	tier2 := hookScript(true)
+	for _, want := range []string{"IRREVERSIBLE", "git\\s+push", "MULTICA_ISSUE_ID", "approval", "check"} {
+		if !strings.Contains(tier2, want) {
+			t.Fatalf("approval-gate-on script missing %q", want)
+		}
+	}
+	// Both end in the allow fall-through.
+	if !strings.HasSuffix(strings.TrimSpace(tier1), "sys.exit(0)") {
+		t.Fatal("script must end with sys.exit(0) allow fall-through")
+	}
+}
+
+// With the approval gate on but NO issue in the env, tier-2 is skipped (approvals
+// attach to an issue) — an irreversible command falls through to allow rather than
+// hanging on a CLI call. This proves non-issue runs aren't broken by the gate.
+func TestApprovalGateSkippedWithoutIssue(t *testing.T) {
+	py, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not available")
+	}
+	dir := t.TempDir()
+	guard := filepath.Join(dir, "bash-guard.py")
+	if err := os.WriteFile(guard, []byte(hookScript(true)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"tool_name": "Bash", "tool_input": map[string]any{"command": "git push origin main"},
+	})
+	c := exec.Command(py, guard)
+	c.Stdin = strings.NewReader(string(payload))
+	c.Env = append(os.Environ(), "MULTICA_ISSUE_ID=") // explicitly no issue
+	out, err := c.Output()
+	if err != nil {
+		t.Fatalf("hook exec failed: %v", err)
+	}
+	if strings.Contains(string(out), `"deny"`) {
+		t.Fatalf("without an issue, tier-2 must not deny (would break non-issue runs); got: %s", out)
+	}
+}
+
 func TestBashGuardScriptBehavior(t *testing.T) {
 	py, err := exec.LookPath("python3")
 	if err != nil {
@@ -86,7 +131,8 @@ func TestBashGuardScriptBehavior(t *testing.T) {
 	}
 	dir := t.TempDir()
 	guard := filepath.Join(dir, "bash-guard.py")
-	if err := os.WriteFile(guard, []byte(bashGuardScript), 0o755); err != nil {
+	// Tier-1-only script (approval gate off): tests the catastrophic guard.
+	if err := os.WriteFile(guard, []byte(hookScript(false)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	run := func(cmd string) bool { // returns true if DENIED

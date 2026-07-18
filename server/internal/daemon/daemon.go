@@ -4098,6 +4098,11 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	if task.AutopilotRunID != "" {
 		agentEnv["MULTICA_AUTOPILOT_RUN_ID"] = task.AutopilotRunID
 	}
+	// Issue id for the approval gate: the PreToolUse hook needs it to request /
+	// check approvals for the issue this run is working on (P0.2).
+	if task.IssueID != "" {
+		agentEnv["MULTICA_ISSUE_ID"] = task.IssueID
+	}
 	if task.AutopilotID != "" {
 		agentEnv["MULTICA_AUTOPILOT_ID"] = task.AutopilotID
 	}
