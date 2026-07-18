@@ -580,6 +580,21 @@ type Issue struct {
 	Properties         []byte             `json:"properties"`
 }
 
+type IssueApproval struct {
+	ID               pgtype.UUID        `json:"id"`
+	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
+	IssueID          pgtype.UUID        `json:"issue_id"`
+	TaskID           pgtype.UUID        `json:"task_id"`
+	ActionKey        string             `json:"action_key"`
+	Command          string             `json:"command"`
+	Status           string             `json:"status"`
+	RequestedByAgent pgtype.UUID        `json:"requested_by_agent"`
+	DecidedByMember  pgtype.UUID        `json:"decided_by_member"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	DecidedAt        pgtype.Timestamptz `json:"decided_at"`
+	ConsumedAt       pgtype.Timestamptz `json:"consumed_at"`
+}
+
 type IssueDependency struct {
 	ID               pgtype.UUID `json:"id"`
 	IssueID          pgtype.UUID `json:"issue_id"`
