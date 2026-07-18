@@ -18,7 +18,8 @@
       "minutes": "{{count}}分",
       "hours": "{{count}}時間",
       "days": "{{count}}日"
-    }
+    },
+    "action_needed": "要対応"
   },
   "detail": {
     "select_prompt": "詳細を表示する通知を選択してください",
