@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "sh -c 'next dev --webpack --port \"${FRONTEND_PORT:-3000}\"'",
+    "dev": "sh -c 'P=$(grep -oE \"^FRONTEND_PORT=[0-9]+\" ../../.env 2>/dev/null | head -1 | grep -oE \"[0-9]+$\"); next dev --webpack --port \"${FRONTEND_PORT:-${P:-3000}}\"'",
     "build": "fumadocs-mdx && next build --webpack",
     "start": "next start",
     "typecheck": "fumadocs-mdx && tsc --noEmit",
