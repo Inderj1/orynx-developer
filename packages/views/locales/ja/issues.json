@@ -158,6 +158,7 @@
     "ordered_by": "{{field}} 順に並べたボード"
   },
   "detail": {
+    "goal_label": "目標",
     "not_found": "このイシューはこのワークスペースに存在しないか、削除されています。",
     "breadcrumb_project_unknown": "不明なプロジェクト",
     "back_to_issues": "イシューに戻る",

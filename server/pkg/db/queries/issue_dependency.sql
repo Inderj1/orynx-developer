@@ -81,3 +81,8 @@ ORDER BY
     position,
     created_at
 LIMIT sqlc.arg('lim');
+
+-- name: DeleteDependenciesByWorkspace :exec
+-- Workspace-delete cleanup (no FK cascade): remove every dependency edge in a
+-- workspace. Called in the DeleteWorkspace transaction.
+DELETE FROM issue_dependency WHERE workspace_id = $1;

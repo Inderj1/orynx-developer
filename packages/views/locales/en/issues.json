@@ -160,6 +160,7 @@
     "ordered_by": "Board ordered by {{field}}"
   },
   "detail": {
+    "goal_label": "Goal",
     "not_found": "This issue does not exist or has been deleted in this workspace.",
     "breadcrumb_project_unknown": "Unknown project",
     "back_to_issues": "Back to Issues",

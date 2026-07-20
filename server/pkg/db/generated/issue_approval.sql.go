@@ -136,6 +136,16 @@ func (q *Queries) DecideApproval(ctx context.Context, arg DecideApprovalParams) 
 	return i, err
 }
 
+const deleteIssueApprovalsByWorkspace = `-- name: DeleteIssueApprovalsByWorkspace :exec
+DELETE FROM issue_approval WHERE workspace_id = $1
+`
+
+// Workspace-delete cleanup (no FK cascade). Called in the DeleteWorkspace tx.
+func (q *Queries) DeleteIssueApprovalsByWorkspace(ctx context.Context, workspaceID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteIssueApprovalsByWorkspace, workspaceID)
+	return err
+}
+
 const getApproval = `-- name: GetApproval :one
 SELECT id, workspace_id, issue_id, task_id, action_key, command, status, requested_by_agent, decided_by_member, created_at, decided_at, consumed_at FROM issue_approval
 WHERE id = $1 AND workspace_id = $2

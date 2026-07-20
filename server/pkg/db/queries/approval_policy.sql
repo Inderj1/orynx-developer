@@ -48,3 +48,11 @@ WHERE workspace_id = $1
   AND (sqlc.narg('issue_id')::uuid IS NULL OR issue_id = sqlc.narg('issue_id'))
 ORDER BY created_at DESC
 LIMIT sqlc.arg('lim');
+
+-- name: DeleteApprovalPoliciesByWorkspace :exec
+-- Workspace-delete cleanup (no FK cascade). Called in the DeleteWorkspace tx.
+DELETE FROM approval_policy WHERE workspace_id = $1;
+
+-- name: DeleteApprovalDecisionLogByWorkspace :exec
+-- Workspace-delete cleanup (no FK cascade). Called in the DeleteWorkspace tx.
+DELETE FROM approval_decision_log WHERE workspace_id = $1;

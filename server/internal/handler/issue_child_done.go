@@ -128,8 +128,11 @@ func (h *Handler) notifyParentOfChildDone(ctx context.Context, prev, issue db.Is
 	// and leaves epics parked in in_progress forever. Advance the parent to
 	// in_review (a human/reviewer confirms the epic) instead of only notifying.
 	if autoCloseEpicsEnabled() && parent.Status != "in_review" && allChildrenTerminal(children) {
+		// Additive: advance the parent, then still post the child-done comment
+		// below. The early return here silently suppressed the documented parent
+		// notification (MUL-2538 mention / MUL-2808/3969 wake) for every
+		// all-children-terminal epic — a live regression, not just a test break.
 		h.autoCloseEpic(ctx, parent)
-		return
 	}
 	if !stageBarrierClosed(children, issue) {
 		return
@@ -215,8 +218,9 @@ func (h *Handler) notifyParentsOfBatchChildDone(ctx context.Context, completed [
 		// Epic auto-close (P1): same as the single path — when every child is
 		// terminal, advance the parent to in_review instead of only notifying.
 		if autoCloseEpicsEnabled() && parent.Status != "in_review" && allChildrenTerminal(children) {
+			// Additive (same as the single path): advance the parent, then still
+			// post the notification below instead of suppressing it.
 			h.autoCloseEpic(ctx, parent)
-			continue
 		}
 
 		batch := len(g.children) > 1

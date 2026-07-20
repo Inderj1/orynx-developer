@@ -55,6 +55,26 @@ func (q *Queries) CreatePolicy(ctx context.Context, arg CreatePolicyParams) (App
 	return i, err
 }
 
+const deleteApprovalDecisionLogByWorkspace = `-- name: DeleteApprovalDecisionLogByWorkspace :exec
+DELETE FROM approval_decision_log WHERE workspace_id = $1
+`
+
+// Workspace-delete cleanup (no FK cascade). Called in the DeleteWorkspace tx.
+func (q *Queries) DeleteApprovalDecisionLogByWorkspace(ctx context.Context, workspaceID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteApprovalDecisionLogByWorkspace, workspaceID)
+	return err
+}
+
+const deleteApprovalPoliciesByWorkspace = `-- name: DeleteApprovalPoliciesByWorkspace :exec
+DELETE FROM approval_policy WHERE workspace_id = $1
+`
+
+// Workspace-delete cleanup (no FK cascade). Called in the DeleteWorkspace tx.
+func (q *Queries) DeleteApprovalPoliciesByWorkspace(ctx context.Context, workspaceID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteApprovalPoliciesByWorkspace, workspaceID)
+	return err
+}
+
 const findMatchingPolicies = `-- name: FindMatchingPolicies :many
 SELECT id, workspace_id, agent_id, action_class, resource, source_approval_id, created_by_member, created_at, revoked_at, revoked_by FROM approval_policy
 WHERE workspace_id = $1
