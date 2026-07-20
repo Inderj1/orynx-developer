@@ -40,12 +40,23 @@ export function InboxListItem({
   const timeAgo = useTimeAgo();
   const displayTitle = getInboxDisplayTitle(item);
 
+  // Colour-code by severity so what NEEDS you is unmissable: action_required
+  // (e.g. an approval gate request) gets a red accent + badge; attention gets
+  // an amber accent; info is neutral.
+  const needsAction = item.severity === "action_required";
+  const isAttention = item.severity === "attention";
+  const accent = needsAction
+    ? "border-l-2 border-l-red-500"
+    : isAttention
+      ? "border-l-2 border-l-amber-500"
+      : "border-l-2 border-l-transparent";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`group flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left transition-colors ${
-        isSelected ? "bg-accent" : "hover:bg-accent/50"
+      className={`group flex w-full items-center gap-3 rounded-md ${accent} px-2 py-2.5 text-left transition-colors ${
+        needsAction && !item.read ? "bg-red-500/5" : isSelected ? "bg-accent" : "hover:bg-accent/50"
       }`}
     >
       <ActorAvatar
@@ -65,6 +76,11 @@ export function InboxListItem({
             >
               {displayTitle}
             </span>
+            {needsAction && (
+              <span className="shrink-0 rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                {t(($) => $.list.action_needed)}
+              </span>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <span

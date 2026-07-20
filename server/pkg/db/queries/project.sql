@@ -45,9 +45,17 @@ SELECT count(*) FROM issue
 WHERE project_id = $1;
 
 -- name: GetProjectIssueStats :many
+-- Per-project issue rollup for the projects list / detail. total_count and
+-- done_count power the progress ring; the per-status counts power the
+-- multi-project task-health tracker (see the projects page). Statuses not
+-- broken out here (todo, backlog) are derivable: todo/other = total - done -
+-- in_progress - in_review - blocked.
 SELECT project_id,
        count(*)::bigint AS total_count,
-       count(*) FILTER (WHERE status IN ('done', 'cancelled'))::bigint AS done_count
+       count(*) FILTER (WHERE status IN ('done', 'cancelled'))::bigint AS done_count,
+       count(*) FILTER (WHERE status = 'in_progress')::bigint AS in_progress_count,
+       count(*) FILTER (WHERE status = 'in_review')::bigint AS in_review_count,
+       count(*) FILTER (WHERE status = 'blocked')::bigint AS blocked_count
 FROM issue
 WHERE project_id = ANY(sqlc.arg('project_ids')::uuid[])
 GROUP BY project_id;

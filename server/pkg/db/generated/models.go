@@ -156,6 +156,34 @@ type AgentToLabel struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type ApprovalDecisionLog struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	TaskID      pgtype.UUID        `json:"task_id"`
+	AgentID     pgtype.UUID        `json:"agent_id"`
+	ActionClass string             `json:"action_class"`
+	Command     string             `json:"command"`
+	Tier        string             `json:"tier"`
+	Decision    string             `json:"decision"`
+	PolicyID    pgtype.UUID        `json:"policy_id"`
+	Reason      string             `json:"reason"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type ApprovalPolicy struct {
+	ID               pgtype.UUID        `json:"id"`
+	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
+	AgentID          pgtype.UUID        `json:"agent_id"`
+	ActionClass      string             `json:"action_class"`
+	Resource         pgtype.Text        `json:"resource"`
+	SourceApprovalID pgtype.UUID        `json:"source_approval_id"`
+	CreatedByMember  pgtype.UUID        `json:"created_by_member"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	RevokedAt        pgtype.Timestamptz `json:"revoked_at"`
+	RevokedBy        pgtype.UUID        `json:"revoked_by"`
+}
+
 type Attachment struct {
 	ID            pgtype.UUID        `json:"id"`
 	WorkspaceID   pgtype.UUID        `json:"workspace_id"`
@@ -578,13 +606,31 @@ type Issue struct {
 	Metadata           []byte             `json:"metadata"`
 	Stage              pgtype.Int4        `json:"stage"`
 	Properties         []byte             `json:"properties"`
+	IsBlocked          bool               `json:"is_blocked"`
+}
+
+type IssueApproval struct {
+	ID               pgtype.UUID        `json:"id"`
+	WorkspaceID      pgtype.UUID        `json:"workspace_id"`
+	IssueID          pgtype.UUID        `json:"issue_id"`
+	TaskID           pgtype.UUID        `json:"task_id"`
+	ActionKey        string             `json:"action_key"`
+	Command          string             `json:"command"`
+	Status           string             `json:"status"`
+	RequestedByAgent pgtype.UUID        `json:"requested_by_agent"`
+	DecidedByMember  pgtype.UUID        `json:"decided_by_member"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	DecidedAt        pgtype.Timestamptz `json:"decided_at"`
+	ConsumedAt       pgtype.Timestamptz `json:"consumed_at"`
 }
 
 type IssueDependency struct {
-	ID               pgtype.UUID `json:"id"`
-	IssueID          pgtype.UUID `json:"issue_id"`
-	DependsOnIssueID pgtype.UUID `json:"depends_on_issue_id"`
-	Type             string      `json:"type"`
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	DependsOnID pgtype.UUID        `json:"depends_on_id"`
+	DepType     string             `json:"dep_type"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type IssueLabel struct {

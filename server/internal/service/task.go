@@ -2768,7 +2768,90 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 	// Broadcast
 	s.broadcastTaskEvent(ctx, protocol.EventTaskCompleted, task)
 
+	// Self-healing (P1): a work run that finished but left its issue in
+	// in_progress gets advanced to in_review. The server otherwise never
+	// advances issue status on the success path, so such an issue is stranded
+	// until a human triages it. Comment-triggered runs are replies (told not to
+	// change status) and are excluded.
+	if autoAdvanceOnComplete() && task.IssueID.Valid && !task.TriggerCommentID.Valid {
+		s.autoAdvanceCompletedIssue(ctx, task.IssueID)
+	}
+
+	// Molecule spine (durable-execution, opt-in): recompute the workspace's
+	// dependency-blocked state so a run that closed a blocker releases its
+	// dependents into ready-work. Dark until MOLECULE_SPINE=1.
+	if moleculeSpineEnabled() && task.IssueID.Valid {
+		s.recomputeMoleculeBlocked(ctx, task.IssueID)
+	}
+
 	return &task, nil
+}
+
+// autoAdvanceOnComplete reports whether a completed work run should push its
+// issue in_progress->in_review when the agent didn't advance it itself. Default
+// on; set MULTICA_AUTO_ADVANCE=0 to keep issue status purely agent-controlled.
+func autoAdvanceOnComplete() bool { return os.Getenv("MULTICA_AUTO_ADVANCE") != "0" }
+
+// moleculeSpineEnabled gates the durable-execution spine (issue dependency DAG +
+// is_blocked ready-work). Opt-in — the spine stays dark until MOLECULE_SPINE=1,
+// so it can ship and be proven before it influences dispatch.
+func moleculeSpineEnabled() bool { return os.Getenv("MOLECULE_SPINE") == "1" }
+
+// recomputeMoleculeBlocked refreshes issue.is_blocked across the completed issue's
+// workspace so a run that closed a blocker releases its dependents into ready-work.
+// Best-effort: the spine's denormalized state converges on the next completion or
+// dependency change even if a single recompute is lost.
+func (s *TaskService) recomputeMoleculeBlocked(ctx context.Context, issueID pgtype.UUID) {
+	issue, err := s.Queries.GetIssue(ctx, issueID)
+	if err != nil {
+		return
+	}
+	if err := s.Queries.RecomputeWorkspaceBlocked(ctx, issue.WorkspaceID); err != nil {
+		slog.Warn("molecule spine: recompute blocked failed",
+			"workspace_id", util.UUIDToString(issue.WorkspaceID), "error", err)
+	}
+}
+
+// isTerminalIssueStatus reports whether an issue status is terminal.
+func isTerminalIssueStatus(status string) bool {
+	return status == "done" || status == "cancelled"
+}
+
+// autoAdvanceCompletedIssue heals the dominant stall: a work run that finished
+// but left its issue in in_progress. Mirrors the failed-path reset but forward
+// (in_progress -> in_review), only when the agent didn't move the issue itself
+// and no other run is active. Epics (issues with a still-open child) are left to
+// the child-done path, since advancing a parent whose children are open would be
+// premature. Best-effort: logs and returns on any error.
+func (s *TaskService) autoAdvanceCompletedIssue(ctx context.Context, issueID pgtype.UUID) {
+	issue, err := s.Queries.GetIssue(ctx, issueID)
+	if err != nil || issue.Status != "in_progress" {
+		return // gone, or the agent already advanced it
+	}
+	hasActive, err := s.Queries.HasActiveTaskForIssue(ctx, issueID)
+	if err != nil || hasActive {
+		return // another run is still working this issue
+	}
+	if children, err := s.Queries.ListChildIssues(ctx, issueID); err == nil {
+		for _, c := range children {
+			if !isTerminalIssueStatus(c.Status) {
+				return // epic still coordinating open children
+			}
+		}
+	}
+	updated, err := s.Queries.UpdateIssueStatus(ctx, db.UpdateIssueStatusParams{
+		ID:          issueID,
+		Status:      "in_review",
+		WorkspaceID: issue.WorkspaceID,
+	})
+	if err != nil {
+		slog.Warn("auto-advance completed issue failed",
+			"issue_id", util.UUIDToString(issueID), "error", err)
+		return
+	}
+	slog.Info("auto-advanced completed issue in_progress->in_review",
+		"issue_id", util.UUIDToString(issueID))
+	s.broadcastIssueUpdated(updated, issue.Status)
 }
 
 // chatNoResponseFallback is the non-empty English body stored on a no_response

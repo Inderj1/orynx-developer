@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -121,6 +122,15 @@ func (h *Handler) notifyParentOfChildDone(ctx context.Context, prev, issue db.Is
 			"parent_id", uuidToString(parent.ID))
 		return
 	}
+	// Epic auto-close (P1): when EVERY child is terminal, the epic's coordinated
+	// work is finished. The server otherwise only wakes the parent's agent and
+	// hopes it closes the parent — which fails for archived/runtime-less agents
+	// and leaves epics parked in in_progress forever. Advance the parent to
+	// in_review (a human/reviewer confirms the epic) instead of only notifying.
+	if autoCloseEpicsEnabled() && parent.Status != "in_review" && allChildrenTerminal(children) {
+		h.autoCloseEpic(ctx, parent)
+		return
+	}
 	if !stageBarrierClosed(children, issue) {
 		return
 	}
@@ -199,6 +209,13 @@ func (h *Handler) notifyParentsOfBatchChildDone(ctx context.Context, completed [
 		if err != nil {
 			slog.Warn("batch child done: failed to list siblings for stage barrier",
 				"error", err, "parent_id", uuidToString(parent.ID))
+			continue
+		}
+
+		// Epic auto-close (P1): same as the single path — when every child is
+		// terminal, advance the parent to in_review instead of only notifying.
+		if autoCloseEpicsEnabled() && parent.Status != "in_review" && allChildrenTerminal(children) {
+			h.autoCloseEpic(ctx, parent)
 			continue
 		}
 
@@ -339,6 +356,52 @@ func (h *Handler) postChildDoneComment(ctx context.Context, parent, completed db
 // cancelled sibling will never complete, so it must not hold a stage open.
 func isTerminalChildStatus(status string) bool {
 	return status == "done" || status == "cancelled"
+}
+
+// autoCloseEpicsEnabled reports whether a parent should auto-advance to in_review
+// once all its children are terminal. Shares the auto-advance opt-out env.
+func autoCloseEpicsEnabled() bool { return os.Getenv("MULTICA_AUTO_ADVANCE") != "0" }
+
+// allChildrenTerminal reports whether every child issue is terminal. An empty
+// set returns false (a childless issue is not an epic to close).
+func allChildrenTerminal(children []db.Issue) bool {
+	if len(children) == 0 {
+		return false
+	}
+	for _, c := range children {
+		if !isTerminalChildStatus(c.Status) {
+			return false
+		}
+	}
+	return true
+}
+
+// autoCloseEpic advances a parent whose children are all terminal to in_review,
+// mirroring advanceIssueToDone's server-side status change + broadcast. Going to
+// in_review (not done) keeps a human/reviewer in the loop for the epic; the
+// parent is non-terminal afterward, so no grandparent cascade is needed.
+func (h *Handler) autoCloseEpic(ctx context.Context, parent db.Issue) {
+	updated, err := h.Queries.UpdateIssueStatus(ctx, db.UpdateIssueStatusParams{
+		ID:          parent.ID,
+		Status:      "in_review",
+		WorkspaceID: parent.WorkspaceID,
+	})
+	if err != nil {
+		slog.Warn("epic auto-close failed", "parent_id", uuidToString(parent.ID), "error", err)
+		return
+	}
+	slog.Info("epic auto-closed: all children terminal, parent -> in_review",
+		"parent_id", uuidToString(parent.ID))
+	prefix := h.getIssuePrefix(ctx, parent.WorkspaceID)
+	resp := issueToResponse(updated, prefix)
+	h.publish(protocol.EventIssueUpdated, uuidToString(parent.WorkspaceID), "system", "", map[string]any{
+		"issue":          resp,
+		"status_changed": true,
+		"prev_status":    parent.Status,
+		"creator_type":   parent.CreatorType,
+		"creator_id":     uuidToString(parent.CreatorID),
+		"source":         "epic_auto_close",
+	})
 }
 
 // siblingsAreStaged reports whether any child in the set carries an explicit

@@ -11,9 +11,9 @@ variable "instance_type" {
 }
 
 variable "disk_gb" {
-  description = "Root volume size. Docker images + node_modules + agent workdirs need headroom."
+  description = "Root volume size. Docker images + node_modules + agent workdirs need headroom. Expanded 40->80 on 2026-07-17 (live modify-volume + growpart/resize2fs) after the 40GB box hit 100% mid-build; keep >=80 for dockerized-app building."
   type        = number
-  default     = 40
+  default     = 80
 }
 
 variable "extra_operator_cidrs" {

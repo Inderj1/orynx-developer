@@ -82,8 +82,8 @@ import { useConfigStore } from "@multica/core/config";
 import { pinListOptions } from "@multica/core/pins/queries";
 import { useDeletePin, useReorderPins } from "@multica/core/pins/mutations";
 import { issueDetailOptions } from "@multica/core/issues/queries";
-import { projectDetailOptions } from "@multica/core/projects/queries";
-import type { PinnedItem } from "@multica/core/types";
+import { projectDetailOptions, projectListOptions } from "@multica/core/projects/queries";
+import type { PinnedItem, Project } from "@multica/core/types";
 import { useLogout } from "../auth";
 import { ProjectIcon } from "../projects/components/project-icon";
 import { useT } from "../i18n";
@@ -111,6 +111,7 @@ const EMPTY_WORKSPACES: Awaited<ReturnType<typeof api.listWorkspaces>> = [];
 const EMPTY_INVITATIONS: Awaited<ReturnType<typeof api.listMyInvitations>> = [];
 const EMPTY_INBOX: Awaited<ReturnType<typeof api.listInbox>> = [];
 const EMPTY_INBOX_SUMMARY: Awaited<ReturnType<typeof api.getInboxUnreadSummary>> = [];
+const EMPTY_PROJECTS: Project[] = [];
 
 // Nav items reference WorkspacePaths method names so they can be resolved
 // against the current workspace slug at render time (see AppSidebar body).
@@ -423,6 +424,10 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const { data: pinnedItems = EMPTY_PINS } = useQuery({
     ...pinListOptions(wsId ?? "", userId ?? ""),
     enabled: !!wsId && !!userId,
+  });
+  const { data: projects = EMPTY_PROJECTS } = useQuery({
+    ...projectListOptions(wsId ?? ""),
+    enabled: !!wsId,
   });
   const deletePin = useDeletePin();
   const reorderPins = useReorderPins();
@@ -760,6 +765,45 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          {/* Per-project quick-nav: each project deep-links to its own focused
+              board (IssueSurface scoped to the project). Only shown when the
+              workspace has projects; collapsible so it stays out of the way. */}
+          {projects.length > 0 && (
+            <Collapsible defaultOpen>
+              <SidebarGroup className="group/projects">
+                <SidebarGroupLabel
+                  render={<CollapsibleTrigger />}
+                  className="group/trigger cursor-pointer"
+                >
+                  <span>{t(($) => $.sidebar.projects_label)}</span>
+                  <ChevronRight className="ml-auto size-3.5 transition-transform group-data-[panel-open]/trigger:rotate-90" />
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu className="gap-0.5">
+                      {projects.map((project) => {
+                        const href = p.projectDetail(project.id);
+                        const isActive = isNavActive(pathname, href);
+                        return (
+                          <SidebarMenuItem key={project.id}>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              render={<AppLink href={href} />}
+                              className="text-muted-foreground hover:not-data-active:bg-sidebar-accent/70 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                            >
+                              <ProjectIcon project={project} size="sm" />
+                              <span className="truncate">{project.title}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          )}
 
           <SidebarGroup>
             <SidebarGroupLabel>{t(($) => $.sidebar.configure_group)}</SidebarGroupLabel>

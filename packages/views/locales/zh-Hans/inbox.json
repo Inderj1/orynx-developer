@@ -18,7 +18,8 @@
       "minutes": "{{count}} 分钟",
       "hours": "{{count}} 小时",
       "days": "{{count}} 天"
-    }
+    },
+    "action_needed": "需要处理"
   },
   "detail": {
     "select_prompt": "选择一条通知查看详情",

@@ -23,6 +23,7 @@ import {
 import type { IssueScope } from "@multica/core/issues/surface/scope";
 import type { IssueDateFilter, SortField } from "@multica/core/issues/stores/view-store";
 import { propertyListOptions } from "@multica/core/properties";
+import { projectListOptions } from "@multica/core/projects/queries";
 import { propertyIdFromViewKey } from "@multica/core/issues/stores/view-store";
 import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import type { IssueFilters } from "../utils/filter";
@@ -137,6 +138,8 @@ export function useIssueSurfaceController({
   const showSubIssues = useViewStore((s) => s.showSubIssues);
   const cardProperties = useViewStore((s) => s.cardProperties);
   const swimlaneGrouping = useViewStore((s) => s.swimlaneGrouping);
+  const setSwimlaneGrouping = useViewStore((s) => s.setSwimlaneGrouping);
+  const swimlaneGroupingUserSet = useViewStore((s) => s.swimlaneGroupingUserSet);
 
   const allowedModes = useMemo(() => new Set<IssueSurfaceMode>(modes), [modes]);
   const fallbackMode = modes[0] ?? "list";
@@ -149,6 +152,27 @@ export function useIssueSurfaceController({
       setViewMode(fallbackMode);
     }
   }, [allowedModes, fallbackMode, setViewMode, viewMode]);
+
+  // Multi-project default: on the WORKSPACE board (not a single-project board),
+  // once the workspace has >1 project and the user hasn't picked a swimlane
+  // grouping themselves, default the swimlane dimension to "project" so grouping
+  // the board surfaces per-project lanes. Fires at most once (setSwimlaneGrouping
+  // flips swimlaneGroupingUserSet), and never overrides an explicit choice.
+  const isWorkspaceBoard = scope.type !== "project";
+  const { data: surfaceProjects } = useQuery({
+    ...projectListOptions(wsId ?? ""),
+    enabled: !!wsId && isWorkspaceBoard,
+  });
+  useEffect(() => {
+    if (
+      isWorkspaceBoard &&
+      !swimlaneGroupingUserSet &&
+      (surfaceProjects?.length ?? 0) > 1 &&
+      swimlaneGrouping !== "project"
+    ) {
+      setSwimlaneGrouping("project");
+    }
+  }, [isWorkspaceBoard, swimlaneGroupingUserSet, surfaceProjects, swimlaneGrouping, setSwimlaneGrouping]);
 
   const resolvedCreateDefaults = useMemo(
     () => ({ ...queryPlan.createDefaults, ...createDefaults }),

@@ -37,6 +37,12 @@ type ProjectResponse struct {
 	UpdatedAt  string  `json:"updated_at"`
 	IssueCount int64   `json:"issue_count"`
 	DoneCount  int64   `json:"done_count"`
+	// Per-status task counts power the multi-project task-health tracker on the
+	// projects page (see the projects list UI). They default to 0 on the detail
+	// endpoint, which only loads total/done.
+	InProgressCount int64 `json:"in_progress_count"`
+	InReviewCount   int64 `json:"in_review_count"`
+	BlockedCount    int64 `json:"blocked_count"`
 	// ResourceCount is a breadcrumb pointing at the sub-collection at
 	// /api/projects/{id}/resources. Resources themselves stay out of this
 	// payload to keep parent metadata and child collections separate; clients
@@ -165,6 +171,9 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		if s, ok := statsMap[resp[i].ID]; ok {
 			resp[i].IssueCount = s.TotalCount
 			resp[i].DoneCount = s.DoneCount
+			resp[i].InProgressCount = s.InProgressCount
+			resp[i].InReviewCount = s.InReviewCount
+			resp[i].BlockedCount = s.BlockedCount
 		}
 		resp[i].ResourceCount = resourceCountMap[resp[i].ID]
 	}

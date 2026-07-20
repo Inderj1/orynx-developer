@@ -18,7 +18,8 @@
       "minutes": "{{count}}분",
       "hours": "{{count}}시간",
       "days": "{{count}}일"
-    }
+    },
+    "action_needed": "조치 필요"
   },
   "detail": {
     "select_prompt": "자세히 볼 알림을 선택하세요",

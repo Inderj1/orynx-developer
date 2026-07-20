@@ -37,6 +37,7 @@
     "new_issue": "新規イシュー",
     "new_issue_shortcut": "C",
     "pinned_label": "ピン留め済み",
+    "projects_label": "プロジェクト",
     "workspace_group": "ワークスペース",
     "configure_group": "設定",
     "unread_overflow": "99+",
