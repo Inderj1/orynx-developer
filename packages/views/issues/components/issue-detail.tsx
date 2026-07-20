@@ -2009,7 +2009,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                   title={`Goal: ${goalDone} done, ${goalReview} in review, ${toDo} to do (of ${goalTotal})`}
                 >
                   <span className="text-[11px] font-medium text-muted-foreground">
-                    Goal
+                    {t("detail.goal_label")}
                   </span>
                   <div className="flex h-1.5 w-16 overflow-hidden rounded-full bg-border">
                     <div
