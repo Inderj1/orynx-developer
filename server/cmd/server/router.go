@@ -1087,6 +1087,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 
 			// Task messages (user-facing, not daemon auth)
 			r.Get("/api/tasks/{taskId}/messages", h.ListTaskMessagesByUser)
+			// Mid-run steering (Phase 2): a member sends a nudge to a running
+			// task; the agent's Stop hook consumes queued nudges at a turn boundary.
+			r.Post("/api/tasks/{taskId}/nudge", h.SendNudge)
+			r.Post("/api/tasks/{taskId}/nudges/consume", h.ConsumeNudges)
 
 			// Custom issue properties (definitions; values live under /api/issues/{id}/properties)
 			r.Route("/api/properties", func(r chi.Router) {
