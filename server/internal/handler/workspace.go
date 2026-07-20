@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -804,6 +805,27 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("delete workspace autopilot rule versions failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
 		writeError(w, http.StatusInternalServerError, "failed to delete workspace")
 		return
+	}
+
+	// The approval-gate + molecule-spine tables carry workspace_id but no FK to
+	// workspace (house rules forbid FKs), so they are not swept by the cascade and
+	// must be removed explicitly here or their rows orphan. See
+	// TestWorkspaceScopedTablesHaveDeleteCoverage.
+	workspaceSweeps := []struct {
+		name string
+		fn   func(context.Context, pgtype.UUID) error
+	}{
+		{"issue_dependency", qtx.DeleteDependenciesByWorkspace},
+		{"issue_approval", qtx.DeleteIssueApprovalsByWorkspace},
+		{"approval_policy", qtx.DeleteApprovalPoliciesByWorkspace},
+		{"approval_decision_log", qtx.DeleteApprovalDecisionLogByWorkspace},
+	}
+	for _, s := range workspaceSweeps {
+		if err := s.fn(r.Context(), requester.WorkspaceID); err != nil {
+			slog.Warn("delete workspace "+s.name+" failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusInternalServerError, "failed to delete workspace")
+			return
+		}
 	}
 
 	// At this point workspaceMember has resolved → workspaceID is a valid UUID

@@ -56,3 +56,7 @@ RETURNING *;
 SELECT * FROM issue_approval
 WHERE workspace_id = $1 AND status = 'pending'
 ORDER BY created_at DESC;
+
+-- name: DeleteIssueApprovalsByWorkspace :exec
+-- Workspace-delete cleanup (no FK cascade). Called in the DeleteWorkspace tx.
+DELETE FROM issue_approval WHERE workspace_id = $1;

@@ -51,6 +51,17 @@ func (q *Queries) CreateDependency(ctx context.Context, arg CreateDependencyPara
 	return i, err
 }
 
+const deleteDependenciesByWorkspace = `-- name: DeleteDependenciesByWorkspace :exec
+DELETE FROM issue_dependency WHERE workspace_id = $1
+`
+
+// Workspace-delete cleanup (no FK cascade): remove every dependency edge in a
+// workspace. Called in the DeleteWorkspace transaction.
+func (q *Queries) DeleteDependenciesByWorkspace(ctx context.Context, workspaceID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteDependenciesByWorkspace, workspaceID)
+	return err
+}
+
 const deleteDependenciesForIssue = `-- name: DeleteDependenciesForIssue :exec
 DELETE FROM issue_dependency
 WHERE workspace_id = $1 AND (issue_id = $2 OR depends_on_id = $2)

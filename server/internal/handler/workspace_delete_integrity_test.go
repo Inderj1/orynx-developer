@@ -36,6 +36,10 @@ var knownNonCascadeWorkspaceTables = map[string]string{
 	"chat_pinned_agent":      "swept by DeleteChatPinnedAgentsByWorkspace in the delete tx",
 	"runtime_profile":        "swept by DeleteRuntimeProfilesByWorkspace in the delete tx",
 	"autopilot_rule_version": "swept by DeleteAutopilotRuleVersionsByWorkspace in the delete tx",
+	"issue_dependency":       "swept by DeleteDependenciesByWorkspace in the delete tx",
+	"issue_approval":         "swept by DeleteIssueApprovalsByWorkspace in the delete tx",
+	"approval_policy":        "swept by DeleteApprovalPoliciesByWorkspace in the delete tx",
+	"approval_decision_log":  "swept by DeleteApprovalDecisionLogByWorkspace in the delete tx",
 
 	// Handled by the schema without a direct workspace cascade.
 	"feedback":          "retained: workspace_id SET NULL on workspace delete (feedback outlives the workspace)",
