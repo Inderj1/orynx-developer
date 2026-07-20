@@ -819,6 +819,7 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		{"issue_approval", qtx.DeleteIssueApprovalsByWorkspace},
 		{"approval_policy", qtx.DeleteApprovalPoliciesByWorkspace},
 		{"approval_decision_log", qtx.DeleteApprovalDecisionLogByWorkspace},
+		{"task_nudge", qtx.DeleteNudgesByWorkspace},
 	}
 	for _, s := range workspaceSweeps {
 		if err := s.fn(r.Context(), requester.WorkspaceID); err != nil {

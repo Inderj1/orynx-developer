@@ -40,6 +40,7 @@ var knownNonCascadeWorkspaceTables = map[string]string{
 	"issue_approval":         "swept by DeleteIssueApprovalsByWorkspace in the delete tx",
 	"approval_policy":        "swept by DeleteApprovalPoliciesByWorkspace in the delete tx",
 	"approval_decision_log":  "swept by DeleteApprovalDecisionLogByWorkspace in the delete tx",
+	"task_nudge":             "swept by DeleteNudgesByWorkspace in the delete tx",
 
 	// Handled by the schema without a direct workspace cascade.
 	"feedback":          "retained: workspace_id SET NULL on workspace delete (feedback outlives the workspace)",

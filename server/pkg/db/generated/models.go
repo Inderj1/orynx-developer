@@ -939,6 +939,17 @@ type TaskMessage struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type TaskNudge struct {
+	ID           pgtype.UUID        `json:"id"`
+	WorkspaceID  pgtype.UUID        `json:"workspace_id"`
+	TaskID       pgtype.UUID        `json:"task_id"`
+	Content      string             `json:"content"`
+	AuthorMember pgtype.UUID        `json:"author_member"`
+	Status       string             `json:"status"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	DeliveredAt  pgtype.Timestamptz `json:"delivered_at"`
+}
+
 type TaskToken struct {
 	ID          pgtype.UUID        `json:"id"`
 	TokenHash   string             `json:"token_hash"`
