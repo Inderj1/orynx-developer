@@ -30,12 +30,12 @@ func TestMoleculeSpine_IsBlockedRecompute(t *testing.T) {
 	ws := parseUUID(wsID)
 
 	// A=blocker; B depends-on A. X=blocker; E(epic) depends-on X; C=child of E. R=independent.
-	a := insertSpineIssue(ctx, t, testPool, wsID, userID, "A-blocker", "todo", "")
-	b := insertSpineIssue(ctx, t, testPool, wsID, userID, "B-dependent", "todo", "")
-	x := insertSpineIssue(ctx, t, testPool, wsID, userID, "X-blocker", "in_progress", "")
-	e := insertSpineIssue(ctx, t, testPool, wsID, userID, "E-epic", "todo", "")
-	c := insertSpineIssue(ctx, t, testPool, wsID, userID, "C-child", "todo", e)
-	r := insertSpineIssue(ctx, t, testPool, wsID, userID, "R-ready", "todo", "")
+	a := insertSpineIssue(ctx, t, testPool, wsID, userID, "A-blocker", "todo", "", 1)
+	b := insertSpineIssue(ctx, t, testPool, wsID, userID, "B-dependent", "todo", "", 2)
+	x := insertSpineIssue(ctx, t, testPool, wsID, userID, "X-blocker", "in_progress", "", 3)
+	e := insertSpineIssue(ctx, t, testPool, wsID, userID, "E-epic", "todo", "", 4)
+	c := insertSpineIssue(ctx, t, testPool, wsID, userID, "C-child", "todo", e, 5)
+	r := insertSpineIssue(ctx, t, testPool, wsID, userID, "R-ready", "todo", "", 6)
 
 	mustDep := func(dependent, blocker string) {
 		t.Helper()
@@ -122,7 +122,9 @@ func teardownSpineFixture(ctx context.Context, pool *pgxpool.Pool, wsID, userID 
 }
 
 // insertSpineIssue inserts a minimal issue and returns its id. parentID "" => NULL.
-func insertSpineIssue(ctx context.Context, t *testing.T, pool *pgxpool.Pool, wsID, userID, title, status, parentID string) string {
+// num sets the per-workspace issue number (unique constraint uq_issue_workspace_number),
+// which the normal create path assigns; raw inserts must supply distinct values.
+func insertSpineIssue(ctx context.Context, t *testing.T, pool *pgxpool.Pool, wsID, userID, title, status, parentID string, num int32) string {
 	t.Helper()
 	var parent any
 	if parentID != "" {
@@ -130,9 +132,9 @@ func insertSpineIssue(ctx context.Context, t *testing.T, pool *pgxpool.Pool, wsI
 	}
 	var id string
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO issue (workspace_id, title, status, priority, creator_type, creator_id, parent_issue_id)
-		 VALUES ($1, $2, $3, 'none', 'member', $4, $5) RETURNING id`,
-		wsID, title, status, userID, parent,
+		`INSERT INTO issue (workspace_id, title, status, priority, creator_type, creator_id, parent_issue_id, number)
+		 VALUES ($1, $2, $3, 'none', 'member', $4, $5, $6) RETURNING id`,
+		wsID, title, status, userID, parent, num,
 	).Scan(&id); err != nil {
 		t.Fatalf("insert issue %q: %v", title, err)
 	}
