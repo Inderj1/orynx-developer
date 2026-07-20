@@ -2777,6 +2777,13 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 		s.autoAdvanceCompletedIssue(ctx, task.IssueID)
 	}
 
+	// Molecule spine (durable-execution, opt-in): recompute the workspace's
+	// dependency-blocked state so a run that closed a blocker releases its
+	// dependents into ready-work. Dark until MOLECULE_SPINE=1.
+	if moleculeSpineEnabled() && task.IssueID.Valid {
+		s.recomputeMoleculeBlocked(ctx, task.IssueID)
+	}
+
 	return &task, nil
 }
 
@@ -2784,6 +2791,26 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 // issue in_progress->in_review when the agent didn't advance it itself. Default
 // on; set MULTICA_AUTO_ADVANCE=0 to keep issue status purely agent-controlled.
 func autoAdvanceOnComplete() bool { return os.Getenv("MULTICA_AUTO_ADVANCE") != "0" }
+
+// moleculeSpineEnabled gates the durable-execution spine (issue dependency DAG +
+// is_blocked ready-work). Opt-in — the spine stays dark until MOLECULE_SPINE=1,
+// so it can ship and be proven before it influences dispatch.
+func moleculeSpineEnabled() bool { return os.Getenv("MOLECULE_SPINE") == "1" }
+
+// recomputeMoleculeBlocked refreshes issue.is_blocked across the completed issue's
+// workspace so a run that closed a blocker releases its dependents into ready-work.
+// Best-effort: the spine's denormalized state converges on the next completion or
+// dependency change even if a single recompute is lost.
+func (s *TaskService) recomputeMoleculeBlocked(ctx context.Context, issueID pgtype.UUID) {
+	issue, err := s.Queries.GetIssue(ctx, issueID)
+	if err != nil {
+		return
+	}
+	if err := s.Queries.RecomputeWorkspaceBlocked(ctx, issue.WorkspaceID); err != nil {
+		slog.Warn("molecule spine: recompute blocked failed",
+			"workspace_id", util.UUIDToString(issue.WorkspaceID), "error", err)
+	}
+}
 
 // isTerminalIssueStatus reports whether an issue status is terminal.
 func isTerminalIssueStatus(status string) bool {
