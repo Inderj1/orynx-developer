@@ -1022,7 +1022,12 @@ ORDER BY priority DESC, created_at ASC;
 -- runtime is busy on a long-running task. Backed by the partial index
 -- idx_agent_task_queue_claim_candidates so the warm path is cheap.
 SELECT * FROM agent_task_queue
-WHERE runtime_id = $1 AND status = 'queued'
+WHERE runtime_id = @runtime_id AND status = 'queued'
+  -- Molecule spine: when enabled, skip tasks whose issue is blocked by an unmet
+  -- dependency. A no-op when @spine_on is false (identical to prior behavior), so
+  -- dispatch is unchanged until MOLECULE_SPINE=1.
+  AND (NOT @spine_on::bool
+       OR NOT EXISTS (SELECT 1 FROM issue i WHERE i.id = agent_task_queue.issue_id AND i.is_blocked))
 ORDER BY priority DESC, created_at ASC;
 
 -- name: PromoteDueDeferredTasksForRuntime :many
@@ -1046,6 +1051,9 @@ RETURNING *;
 -- candidate set is small, so this is cheap in practice.
 SELECT * FROM agent_task_queue
 WHERE runtime_id = ANY(@runtime_ids::uuid[]) AND status = 'queued'
+  -- Molecule spine: no-op when @spine_on is false; skips blocked-issue tasks when true.
+  AND (NOT @spine_on::bool
+       OR NOT EXISTS (SELECT 1 FROM issue i WHERE i.id = agent_task_queue.issue_id AND i.is_blocked))
 ORDER BY priority DESC, created_at ASC;
 
 -- name: PromoteDueDeferredTasksForRuntimes :many
