@@ -2607,6 +2607,10 @@ func TestVerifyCodeRejectsDevCodeUnlessExplicitlyConfigured(t *testing.T) {
 func TestVerifyCodeAcceptsConfiguredDevCodeOutsideProduction(t *testing.T) {
 	t.Setenv(devVerificationCodeEnv, "888888")
 	t.Setenv("APP_ENV", "development")
+	// The dev-code path is fail-closed behind an explicit MULTICA_DEV_MODE opt-in
+	// (hardening in 6832fafb1); without it the code is rejected. The test predates
+	// that gate — set it so the 200 expectation holds.
+	t.Setenv("MULTICA_DEV_MODE", "1")
 
 	const email = "dev-code-enabled-test@multica.ai"
 	ctx := context.Background()
