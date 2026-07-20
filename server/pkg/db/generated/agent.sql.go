@@ -3505,8 +3505,18 @@ func (q *Queries) ListPendingTasksByRuntime(ctx context.Context, runtimeID pgtyp
 const listQueuedClaimCandidatesByRuntime = `-- name: ListQueuedClaimCandidatesByRuntime :many
 SELECT id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, wait_reason, initiator_user_id, handoff_note, prepare_lease_expires_at, squad_id, runtime_mcp_overlay, escalation_for_task_id, fire_at, originator_user_id, runtime_connected_apps, coalesced_comment_ids, delivered_comment_ids, chat_input_task_id, chat_finalize_deferred_at, originator_source, delegated_from_task_id, retry_of_task_id, rerun_of_task_id, rule_version_id, trigger_evidence_kind, trigger_evidence_ref_id, accountable_user_id FROM agent_task_queue
 WHERE runtime_id = $1 AND status = 'queued'
+  -- Molecule spine: when enabled, skip tasks whose issue is blocked by an unmet
+  -- dependency. A no-op when @spine_on is false (identical to prior behavior), so
+  -- dispatch is unchanged until MOLECULE_SPINE=1.
+  AND (NOT $2::bool
+       OR NOT EXISTS (SELECT 1 FROM issue i WHERE i.id = agent_task_queue.issue_id AND i.is_blocked))
 ORDER BY priority DESC, created_at ASC
 `
+
+type ListQueuedClaimCandidatesByRuntimeParams struct {
+	RuntimeID pgtype.UUID `json:"runtime_id"`
+	SpineOn   bool        `json:"spine_on"`
+}
 
 // Returns rows the runtime can attempt to claim. Status is restricted to
 // 'queued' (in contrast to ListPendingTasksByRuntime which also includes
@@ -3516,8 +3526,8 @@ ORDER BY priority DESC, created_at ASC
 // ClaimAgentTask, wasting CPU and a SELECT every poll cycle when the
 // runtime is busy on a long-running task. Backed by the partial index
 // idx_agent_task_queue_claim_candidates so the warm path is cheap.
-func (q *Queries) ListQueuedClaimCandidatesByRuntime(ctx context.Context, runtimeID pgtype.UUID) ([]AgentTaskQueue, error) {
-	rows, err := q.db.Query(ctx, listQueuedClaimCandidatesByRuntime, runtimeID)
+func (q *Queries) ListQueuedClaimCandidatesByRuntime(ctx context.Context, arg ListQueuedClaimCandidatesByRuntimeParams) ([]AgentTaskQueue, error) {
+	rows, err := q.db.Query(ctx, listQueuedClaimCandidatesByRuntime, arg.RuntimeID, arg.SpineOn)
 	if err != nil {
 		return nil, err
 	}
@@ -3587,8 +3597,16 @@ func (q *Queries) ListQueuedClaimCandidatesByRuntime(ctx context.Context, runtim
 const listQueuedClaimCandidatesByRuntimes = `-- name: ListQueuedClaimCandidatesByRuntimes :many
 SELECT id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, wait_reason, initiator_user_id, handoff_note, prepare_lease_expires_at, squad_id, runtime_mcp_overlay, escalation_for_task_id, fire_at, originator_user_id, runtime_connected_apps, coalesced_comment_ids, delivered_comment_ids, chat_input_task_id, chat_finalize_deferred_at, originator_source, delegated_from_task_id, retry_of_task_id, rerun_of_task_id, rule_version_id, trigger_evidence_kind, trigger_evidence_ref_id, accountable_user_id FROM agent_task_queue
 WHERE runtime_id = ANY($1::uuid[]) AND status = 'queued'
+  -- Molecule spine: no-op when @spine_on is false; skips blocked-issue tasks when true.
+  AND (NOT $2::bool
+       OR NOT EXISTS (SELECT 1 FROM issue i WHERE i.id = agent_task_queue.issue_id AND i.is_blocked))
 ORDER BY priority DESC, created_at ASC
 `
+
+type ListQueuedClaimCandidatesByRuntimesParams struct {
+	RuntimeIds []pgtype.UUID `json:"runtime_ids"`
+	SpineOn    bool          `json:"spine_on"`
+}
 
 // Batch variant of ListQueuedClaimCandidatesByRuntime (MUL-4257): returns
 // queued claim candidates across every runtime_id in the input set in ONE round
@@ -3600,8 +3618,8 @@ ORDER BY priority DESC, created_at ASC
 // a sort step (each runtime's slice is index-ordered, but merging several
 // runtimes' rows into one priority/FIFO order is not). The per-machine
 // candidate set is small, so this is cheap in practice.
-func (q *Queries) ListQueuedClaimCandidatesByRuntimes(ctx context.Context, runtimeIds []pgtype.UUID) ([]AgentTaskQueue, error) {
-	rows, err := q.db.Query(ctx, listQueuedClaimCandidatesByRuntimes, runtimeIds)
+func (q *Queries) ListQueuedClaimCandidatesByRuntimes(ctx context.Context, arg ListQueuedClaimCandidatesByRuntimesParams) ([]AgentTaskQueue, error) {
+	rows, err := q.db.Query(ctx, listQueuedClaimCandidatesByRuntimes, arg.RuntimeIds, arg.SpineOn)
 	if err != nil {
 		return nil, err
 	}

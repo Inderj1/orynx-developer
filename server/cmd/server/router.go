@@ -1076,6 +1076,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Post("/approvals", h.RequestApproval)
 					r.Post("/approvals/check", h.CheckApproval)
 					r.Post("/approvals/{approvalId}/decide", h.DecideApproval)
+					// Molecule spine (Phase 1): the issue dependency DAG. Edges
+					// are stored always; is_blocked recompute + dispatch-awareness
+					// are gated by MOLECULE_SPINE.
+					r.Get("/dependencies", h.ListIssueDependencies)
+					r.Post("/dependencies", h.CreateIssueDependency)
+					r.Delete("/dependencies/{dependsOnId}", h.DeleteIssueDependency)
 				})
 			})
 
