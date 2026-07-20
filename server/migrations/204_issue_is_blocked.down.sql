@@ -1,0 +1,1 @@
+ALTER TABLE issue DROP COLUMN IF EXISTS is_blocked;

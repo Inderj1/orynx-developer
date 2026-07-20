@@ -606,6 +606,7 @@ type Issue struct {
 	Metadata           []byte             `json:"metadata"`
 	Stage              pgtype.Int4        `json:"stage"`
 	Properties         []byte             `json:"properties"`
+	IsBlocked          bool               `json:"is_blocked"`
 }
 
 type IssueApproval struct {
@@ -624,10 +625,12 @@ type IssueApproval struct {
 }
 
 type IssueDependency struct {
-	ID               pgtype.UUID `json:"id"`
-	IssueID          pgtype.UUID `json:"issue_id"`
-	DependsOnIssueID pgtype.UUID `json:"depends_on_issue_id"`
-	Type             string      `json:"type"`
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	DependsOnID pgtype.UUID        `json:"depends_on_id"`
+	DepType     string             `json:"dep_type"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type IssueLabel struct {
