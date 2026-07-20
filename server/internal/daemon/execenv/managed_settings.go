@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Managed Claude Code settings.json — a deterministic guardrail layer.
@@ -131,23 +132,54 @@ func hookScript(approvalGate bool) string {
 	return s + "\nsys.exit(0)\n"
 }
 
-// managedSettingsJSON returns the settings.json content wiring the PreToolUse
-// Bash guard at the given absolute guard-script path.
-func managedSettingsJSON(guardPath string) string {
-	// Hand-rendered so the shape is obvious and stable in diffs/tests.
-	return fmt.Sprintf(`{
-  "hooks": {
-    "PreToolUse": [
+// nudgeSteeringEnabled gates the mid-run steering Stop hook (Phase 2). Opt-in —
+// the hook is written only when MULTICA_NUDGE_STEERING=1, so runs are unchanged
+// until it is enabled.
+func nudgeSteeringEnabled() bool { return os.Getenv("MULTICA_NUDGE_STEERING") == "1" }
+
+// nudgeHookPy is the Stop hook: at a turn boundary it consumes any queued nudges
+// for this task and, if present, blocks the stop and feeds them back as guidance,
+// so the agent continues with the steer instead of ending the run.
+const nudgeHookPy = `import json, os, subprocess, sys
+task = os.environ.get("MULTICA_TASK_ID", "")
+if not task:
+    sys.exit(0)
+try:
+    r = subprocess.run(["multica", "task", "nudge", "check", task],
+                       capture_output=True, text=True, timeout=10)
+    msg = r.stdout.strip()
+    if msg:
+        print(json.dumps({"decision": "block", "reason": msg}))
+except Exception:
+    pass
+sys.exit(0)
+`
+
+// managedSettingsJSON returns the settings.json wiring the enabled hooks: the
+// PreToolUse Bash guard (when guardPath != "") and the Stop nudge hook (when
+// nudgePath != ""). Hand-rendered so the shape is obvious and stable in tests.
+func managedSettingsJSON(guardPath, nudgePath string) string {
+	var sections []string
+	if guardPath != "" {
+		sections = append(sections, fmt.Sprintf(`    "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "python3 %s" }
         ]
       }
-    ]
-  }
-}
-`, guardPath)
+    ]`, guardPath))
+	}
+	if nudgePath != "" {
+		sections = append(sections, fmt.Sprintf(`    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 %s" }
+        ]
+      }
+    ]`, nudgePath))
+	}
+	return fmt.Sprintf("{\n  \"hooks\": {\n%s\n  }\n}\n", strings.Join(sections, ",\n"))
 }
 
 // writeManagedSettings writes a managed .claude/settings.json plus the Bash
@@ -155,7 +187,9 @@ func managedSettingsJSON(guardPath string) string {
 // No-op (nil) when disabled or unsupported. Pre-existing files are left alone
 // (the operator owns them) — same policy as the rest of writeContextFiles.
 func writeManagedSettings(workDir, provider string, manifest *sidecarManifest) error {
-	if !bashGuardEnabled() && !approvalGateEnabled() {
+	guard := bashGuardEnabled() || approvalGateEnabled()
+	nudge := nudgeSteeringEnabled()
+	if !guard && !nudge {
 		return nil
 	}
 	cfgDir := managedSettingsDir(provider)
@@ -166,14 +200,25 @@ func writeManagedSettings(workDir, provider string, manifest *sidecarManifest) e
 	if err := recordMkdirAll(hooksDir, 0o755, manifest); err != nil {
 		return fmt.Errorf("create hooks dir: %w", err)
 	}
-	guardPath := filepath.Join(hooksDir, "bash-guard.py")
-	if err := recordWriteFile(guardPath, []byte(hookScript(approvalGateEnabled())), 0o755, manifest); err != nil {
-		if !errors.Is(err, errPathPreExists) {
-			return fmt.Errorf("write bash-guard.py: %w", err)
+	var guardPath, nudgePath string
+	if guard {
+		guardPath = filepath.Join(hooksDir, "bash-guard.py")
+		if err := recordWriteFile(guardPath, []byte(hookScript(approvalGateEnabled())), 0o755, manifest); err != nil {
+			if !errors.Is(err, errPathPreExists) {
+				return fmt.Errorf("write bash-guard.py: %w", err)
+			}
+		}
+	}
+	if nudge {
+		nudgePath = filepath.Join(hooksDir, "nudge-hook.py")
+		if err := recordWriteFile(nudgePath, []byte(nudgeHookPy), 0o755, manifest); err != nil {
+			if !errors.Is(err, errPathPreExists) {
+				return fmt.Errorf("write nudge-hook.py: %w", err)
+			}
 		}
 	}
 	settingsPath := filepath.Join(workDir, cfgDir, "settings.json")
-	if err := recordWriteFile(settingsPath, []byte(managedSettingsJSON(guardPath)), 0o644, manifest); err != nil {
+	if err := recordWriteFile(settingsPath, []byte(managedSettingsJSON(guardPath, nudgePath)), 0o644, manifest); err != nil {
 		if !errors.Is(err, errPathPreExists) {
 			return fmt.Errorf("write settings.json: %w", err)
 		}

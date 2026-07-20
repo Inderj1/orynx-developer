@@ -21,7 +21,7 @@ func TestManagedSettingsDir(t *testing.T) {
 }
 
 func TestManagedSettingsJSONValid(t *testing.T) {
-	s := managedSettingsJSON("/w/.claude/hooks/bash-guard.py")
+	s := managedSettingsJSON("/w/.claude/hooks/bash-guard.py", "")
 	var v map[string]any
 	if err := json.Unmarshal([]byte(s), &v); err != nil {
 		t.Fatalf("settings.json is not valid JSON: %v", err)
@@ -29,6 +29,20 @@ func TestManagedSettingsJSONValid(t *testing.T) {
 	for _, want := range []string{"PreToolUse", `"Bash"`, "bash-guard.py"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("settings.json missing %q:\n%s", want, s)
+		}
+	}
+	if strings.Contains(s, "Stop") {
+		t.Fatalf("no Stop hook expected when nudgePath is empty:\n%s", s)
+	}
+
+	// With both hooks the JSON stays valid and carries both sections.
+	both := managedSettingsJSON("/w/.claude/hooks/bash-guard.py", "/w/.claude/hooks/nudge-hook.py")
+	if err := json.Unmarshal([]byte(both), &v); err != nil {
+		t.Fatalf("dual-hook settings.json is not valid JSON: %v\n%s", err, both)
+	}
+	for _, want := range []string{"PreToolUse", "Stop", "nudge-hook.py"} {
+		if !strings.Contains(both, want) {
+			t.Fatalf("dual-hook settings.json missing %q:\n%s", want, both)
 		}
 	}
 }
