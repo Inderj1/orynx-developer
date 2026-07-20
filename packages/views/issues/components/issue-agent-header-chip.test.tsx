@@ -108,7 +108,7 @@ beforeEach(() => {
 });
 
 describe("IssueAgentHeaderChip", () => {
-  it("shows the active agent name without event count or elapsed time", () => {
+  it("shows the active agent name and live elapsed, without an event count", () => {
     mockState.tasks = [makeTask({})];
 
     renderWithI18n(<IssueAgentHeaderChip issueId="issue-1" />);
@@ -118,7 +118,9 @@ describe("IssueAgentHeaderChip", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Walt is working")).toBeInTheDocument();
     expect(screen.queryByText(/events?/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/\d+[smh]/i)).not.toBeInTheDocument();
+    // The chip shows a live, ticking elapsed timer (useLiveElapsed) while the
+    // agent works — deliberate progress affordance; only the event count is omitted.
+    expect(screen.getByText(/\d+[smh]/i)).toBeInTheDocument();
     expect(mockState.taskMessagesOptions).not.toHaveBeenCalled();
   });
 
